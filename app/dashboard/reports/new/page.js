@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/client'
+
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -137,22 +138,26 @@ const severityOptions = [
   {
     value: 'low',
     label: 'Low',
-    description: 'A concern that does not appear immediately dangerous.',
+    description:
+      'A concern that does not appear immediately dangerous.',
   },
   {
     value: 'medium',
     label: 'Medium',
-    description: 'A significant concern that should be reviewed.',
+    description:
+      'A significant concern that should be reviewed.',
   },
   {
     value: 'high',
     label: 'High',
-    description: 'A serious concern requiring prompt attention.',
+    description:
+      'A serious concern requiring prompt attention.',
   },
   {
     value: 'critical',
     label: 'Critical',
-    description: 'An immediate or potentially life-threatening concern.',
+    description:
+      'An immediate or potentially life-threatening concern.',
   },
 ]
 
@@ -162,23 +167,15 @@ export default function NewReportPage() {
 
   const [category, setCategory] = useState('')
   const [title, setTitle] = useState('')
-  const [description, setDescription] =
-    useState('')
+  const [description, setDescription] = useState('')
   const [location, setLocation] = useState('')
-  const [incidentDate, setIncidentDate] =
-    useState('')
-  const [severity, setSeverity] =
-    useState('medium')
-  const [anonymous, setAnonymous] =
-    useState(false)
+  const [incidentDate, setIncidentDate] = useState('')
+  const [severity, setSeverity] = useState('medium')
+  const [anonymous, setAnonymous] = useState(false)
 
-  const [loading, setLoading] =
-    useState(false)
-  const [error, setError] =
-    useState('')
-
-  const [showConfirm, setShowConfirm] =
-    useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
 
   function validateForm() {
     if (!category) {
@@ -199,8 +196,7 @@ export default function NewReportPage() {
   function handleSubmit(event) {
     event.preventDefault()
 
-    const validationError =
-      validateForm()
+    const validationError = validateForm()
 
     if (validationError) {
       setError(validationError)
@@ -217,6 +213,10 @@ export default function NewReportPage() {
       setShowConfirm(false)
       setError('')
 
+      // --------------------------------------------------
+      // Get authenticated user
+      // --------------------------------------------------
+
       const {
         data: { user },
         error: userError,
@@ -227,26 +227,97 @@ export default function NewReportPage() {
         return
       }
 
-      const { error: insertError } =
-        await supabase
-          .from('reports')
-          .insert({
-            reporter_id: user.id,
-            category,
-            title: title.trim(),
-            description:
-              description.trim(),
-            location:
-              location.trim() || null,
-            incident_date:
-              incidentDate || null,
-            severity,
-            anonymous,
-          })
+      // --------------------------------------------------
+      // AI classification + severity assessment
+      // --------------------------------------------------
+
+      const aiText = `${title.trim()}\n${description.trim()}`
+
+      let classification = null
+
+      try {
+        const aiResponse = await fetch(
+          '/api/ai/classify',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: aiText,
+            }),
+          }
+        )
+
+        const aiData = await aiResponse.json()
+
+        if (!aiResponse.ok) {
+          throw new Error(
+            aiData.error ||
+              'AI classification failed.'
+          )
+        }
+
+        classification = aiData
+
+        console.log(
+          'AI classification:',
+          classification
+        )
+      } catch (aiError) {
+        console.error(
+          'AI classification failed:',
+          aiError
+        )
+
+        // The report should still be submitted
+        // if the AI service is temporarily unavailable.
+        classification = null
+      }
+
+      // --------------------------------------------------
+      // Save report to Supabase
+      // --------------------------------------------------
+
+      const { error: insertError } = await supabase
+        .from('reports')
+        .insert({
+          reporter_id: user.id,
+
+          // Student-selected category
+          category,
+
+          title: title.trim(),
+
+          description: description.trim(),
+
+          location:
+            location.trim() || null,
+
+          incident_date:
+            incidentDate || null,
+
+          // Student-selected/current severity
+          severity,
+
+          anonymous,
+
+          // AI-generated category
+          ai_category:
+            classification?.category || null,
+
+          // AI-generated severity
+          ai_severity:
+            classification?.severity || null,
+        })
 
       if (insertError) {
         throw insertError
       }
+
+      // --------------------------------------------------
+      // Finish
+      // --------------------------------------------------
 
       router.push('/dashboard/reports')
       router.refresh()
@@ -283,9 +354,7 @@ export default function NewReportPage() {
 
         {/* Header */}
         <div className="mb-6">
-
           <div className="flex items-start gap-4">
-
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
               <ShieldIcon />
             </div>
@@ -301,16 +370,12 @@ export default function NewReportPage() {
                 by authorized school personnel.
               </p>
             </div>
-
           </div>
-
         </div>
 
         {/* Privacy notice */}
         <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/80 p-4 sm:p-5">
-
           <div className="flex gap-3">
-
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
               <LockIcon />
             </div>
@@ -327,19 +392,15 @@ export default function NewReportPage() {
                 anonymously.
               </p>
             </div>
-
           </div>
-
         </div>
 
         <form
           onSubmit={handleSubmit}
           className="space-y-6"
         >
-
           {/* Incident information */}
           <Card className="p-5 sm:p-6">
-
             <div className="mb-6">
               <h2 className="text-lg font-bold text-slate-900">
                 Incident Information
@@ -361,18 +422,14 @@ export default function NewReportPage() {
               </label>
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-
                 {categories.map(
                   (option) => {
                     const selected =
-                      category ===
-                      option.value
+                      category === option.value
 
                     return (
                       <button
-                        key={
-                          option.value
-                        }
+                        key={option.value}
                         type="button"
                         onClick={() =>
                           setCategory(
@@ -385,9 +442,7 @@ export default function NewReportPage() {
                             : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
                         }`}
                       >
-
                         <div className="flex items-start gap-3">
-
                           <div
                             className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                               selected
@@ -402,25 +457,18 @@ export default function NewReportPage() {
 
                           <div>
                             <p className="text-sm font-bold text-slate-800">
-                              {
-                                option.label
-                              }
+                              {option.label}
                             </p>
 
                             <p className="mt-1 text-xs leading-5 text-slate-500">
-                              {
-                                option.description
-                              }
+                              {option.description}
                             </p>
                           </div>
-
                         </div>
-
                       </button>
                     )
                   }
                 )}
-
               </div>
             </div>
 
@@ -488,7 +536,6 @@ export default function NewReportPage() {
 
             {/* Location + date */}
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-
               <div>
                 <label
                   htmlFor="location"
@@ -531,14 +578,11 @@ export default function NewReportPage() {
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                 />
               </div>
-
             </div>
-
           </Card>
 
           {/* Severity */}
           <Card className="p-5 sm:p-6">
-
             <div className="mb-5">
               <h2 className="text-lg font-bold text-slate-900">
                 Severity
@@ -551,12 +595,10 @@ export default function NewReportPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-
               {severityOptions.map(
                 (option) => {
                   const selected =
-                    severity ===
-                    option.value
+                    severity === option.value
 
                   return (
                     <button
@@ -573,9 +615,7 @@ export default function NewReportPage() {
                           : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
                       }`}
                     >
-
                       <div className="flex items-start gap-3">
-
                         <div
                           className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                             selected
@@ -594,28 +634,20 @@ export default function NewReportPage() {
                           </p>
 
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            {
-                              option.description
-                            }
+                            {option.description}
                           </p>
                         </div>
-
                       </div>
-
                     </button>
                   )
                 }
               )}
-
             </div>
-
           </Card>
 
           {/* Anonymous */}
           <Card className="p-5 sm:p-6">
-
             <div className="flex items-start gap-4">
-
               <button
                 type="button"
                 onClick={() =>
@@ -628,9 +660,7 @@ export default function NewReportPage() {
                     ? 'bg-blue-600'
                     : 'bg-slate-300'
                 }`}
-                aria-pressed={
-                  anonymous
-                }
+                aria-pressed={anonymous}
               >
                 <span
                   className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
@@ -654,9 +684,7 @@ export default function NewReportPage() {
                   report internally.
                 </p>
               </div>
-
             </div>
-
           </Card>
 
           {/* Error */}
@@ -670,7 +698,6 @@ export default function NewReportPage() {
 
           {/* Submit */}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
             <Button
               type="button"
               variant="secondary"
@@ -690,17 +717,14 @@ export default function NewReportPage() {
               className="w-full sm:w-auto"
             >
               {loading
-                ? 'Submitting...'
+                ? 'Analyzing & Submitting...'
                 : 'Submit Report'}
             </Button>
-
           </div>
-
         </form>
 
         {/* Emergency note */}
         <div className="mt-6 flex gap-3 rounded-2xl border border-amber-100 bg-amber-50/80 p-4">
-
           <InfoIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
 
           <p className="text-xs leading-5 text-amber-800">
@@ -712,9 +736,7 @@ export default function NewReportPage() {
             are not a replacement for emergency
             services.
           </p>
-
         </div>
-
       </div>
 
       {/* Confirmation */}
@@ -732,7 +754,7 @@ export default function NewReportPage() {
         }
         confirmText={
           loading
-            ? 'Submitting...'
+            ? 'Analyzing & Submitting...'
             : 'Submit Report'
         }
         cancelText="Go Back"
@@ -741,7 +763,6 @@ export default function NewReportPage() {
           setShowConfirm(false)
         }
       />
-
     </div>
   )
 }

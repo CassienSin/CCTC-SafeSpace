@@ -1,0 +1,161 @@
+text,category
+"Several students keep making fun of me during class",bullying
+"My classmates repeatedly call me insulting names",bullying
+"Students keep laughing at me and making jokes about me",bullying
+"A group of students keeps excluding me and making fun of me",bullying
+"Someone keeps mocking me every day at school",bullying
+"My classmates make fun of the way I speak",bullying
+"Students keep teasing me about my appearance",bullying
+"A group of students laughs at me whenever I answer a question",bullying
+"One student keeps making jokes about me in front of everyone",bullying
+"Students repeatedly make fun of my grades",bullying
+"My classmates keep calling me stupid",bullying
+"Someone keeps humiliating me during lunch",bullying
+"Students keep teasing me whenever I walk past them",bullying
+"A group keeps making rude jokes about me",bullying
+"My classmates keep picking on me every day",bullying
+"Someone keeps making fun of my clothes",bullying
+"Students repeatedly mock me during class",bullying
+"A student keeps laughing at me whenever I speak",bullying
+"My classmates keep embarrassing me in front of other students",bullying
+"Several students constantly tease me at school",bullying
+"A student keeps bothering me even after I asked them to stop",harassment
+"Someone repeatedly follows me around school and makes me uncomfortable",harassment
+"A classmate keeps making inappropriate comments toward me",harassment
+"A student keeps sending me unwanted messages",harassment
+"Someone keeps staring at me and making me uncomfortable",harassment
+"A student repeatedly makes unwanted comments about my body",harassment
+"Someone keeps approaching me even though I asked them to leave me alone",harassment
+"A classmate keeps making uncomfortable jokes toward me",harassment
+"Someone keeps bothering me during my classes",harassment
+"A student keeps invading my personal space",harassment
+"Someone repeatedly asks me inappropriate personal questions",harassment
+"A classmate keeps making unwanted remarks about me",harassment
+"Someone keeps waiting outside my classroom to bother me",harassment
+"A student keeps following me after school",harassment
+"Someone repeatedly makes me uncomfortable in the hallway",harassment
+"A student keeps sending messages after I told them to stop",harassment
+"Someone keeps making inappropriate gestures toward me",harassment
+"A classmate repeatedly bothers me during lunch",harassment
+"A student keeps coming near me even when I avoid them",harassment
+"Someone repeatedly makes unwanted comments about my appearance",harassment
+"A student told me they were going to hurt me",threat
+"Someone sent me a message saying they would attack me",threat
+"A classmate threatened me after school",threat
+"I received a threat from another student",threat
+"Someone said they would hurt my family",threat
+"A student told me they would beat me up tomorrow",threat
+"Someone threatened to attack me if I reported them",threat
+"A classmate said they were going to hurt me",threat
+"I received a threatening message from another student",threat
+"Someone warned me that they would hurt me later",threat
+"A student threatened me outside the classroom",threat
+"Someone told me I would regret reporting them",threat
+"A classmate threatened to harm me after school",threat
+"Someone said they would attack me tomorrow",threat
+"A student threatened my friend if we reported the incident",threat
+"I was told that someone would hurt me",threat
+"A student said they were planning to attack me",threat
+"Someone threatened to hurt my family if I spoke up",threat
+"A classmate sent me a message threatening me",threat
+"Someone told me they would physically hurt me",threat
+"A student physically attacked me at school",violence
+"Someone punched me during an argument",violence
+"I was pushed and hit by another student",violence
+"A fight broke out and I was injured",violence
+"Someone physically assaulted me",violence
+"A student kicked me during a fight",violence
+"Someone slapped me in the hallway",violence
+"I was punched by another student after class",violence
+"A classmate pushed me to the ground",violence
+"Someone hit me during lunch",violence
+"I was physically attacked by a student",violence
+"A student kicked me and caused an injury",violence
+"Someone grabbed me and pushed me",violence
+"I was hit during a fight at school",violence
+"A classmate physically hurt me",violence
+"Someone punched me in the hallway",violence
+"I was pushed into a wall by another student",violence
+"A student attacked me during an argument",violence
+"Someone hit me several times",violence
+"I was physically assaulted after school",violence
+"I have been thinking about hurting myself",self_harm
+"I feel like I might hurt myself",self_harm
+"I am having thoughts of suicide",self_harm
+"I don't feel safe with myself right now",self_harm
+"I have been thinking about ending my life",self_harm
+"I feel like hurting myself tonight",self_harm
+"I keep thinking about suicide",self_harm
+"I don't know if I can keep going anymore",self_harm
+"I feel like I might do something to hurt myself",self_harm
+"I have thoughts about ending my life",self_harm
+"I am afraid I might hurt myself",self_harm
+"I have been thinking about taking my own life",self_harm
+"I don't feel safe being alone with my thoughts",self_harm
+"I feel like I want to disappear permanently",self_harm
+"I have been having thoughts of self injury",self_harm
+"I keep thinking about hurting myself when I feel overwhelmed",self_harm
+"I don't know how much longer I can handle this",self_harm
+"I am thinking about suicide and need help",self_harm
+"I feel like hurting myself because everything feels hopeless",self_harm
+"I am worried that I might hurt myself",self_harm
+"Someone keeps posting embarrassing things about me online",cyberbullying
+"A student created an account to make fun of me online",cyberbullying
+"My classmates are sharing humiliating photos of me online",cyberbullying
+"Someone keeps sending me abusive messages on social media",cyberbullying
+"A student is spreading rumors about me through social media",cyberbullying
+"Someone posted an embarrassing video of me online",cyberbullying
+"My classmates keep insulting me in a group chat",cyberbullying
+"Someone created a fake account using my name to mock me",cyberbullying
+"A student keeps posting mean comments about me online",cyberbullying
+"Someone is sharing private pictures of me without permission",cyberbullying
+"My classmates are making fun of me in an online group",cyberbullying
+"Someone keeps tagging me in humiliating posts",cyberbullying
+"A student is spreading lies about me online",cyberbullying
+"Someone keeps sending threatening messages through social media",cyberbullying
+"My classmates are posting jokes about me online every day",cyberbullying
+"Someone uploaded embarrassing photos of me without permission",cyberbullying
+"A student keeps harassing me through messages",cyberbullying
+"Someone made a fake profile to embarrass me",cyberbullying
+"My classmates keep sharing rumors about me online",cyberbullying
+"Someone is repeatedly insulting me through a group chat",cyberbullying
+"I am being treated differently because of my disability",discrimination
+"Students are excluding me because of my background",discrimination
+"A teacher treated me differently because of my gender",discrimination
+"Someone made offensive comments about my religion",discrimination
+"I was treated unfairly because of who I am",discrimination
+"I was excluded because of my ethnicity",discrimination
+"Someone made discriminatory comments about my disability",discrimination
+"I was treated differently because of my race",discrimination
+"A student made offensive remarks about my religion",discrimination
+"I was denied participation because of my gender",discrimination
+"Someone mocked my cultural background in a discriminatory way",discrimination
+"I was treated unfairly because of my nationality",discrimination
+"A student made hateful comments about my disability",discrimination
+"I was excluded because of my religious beliefs",discrimination
+"Someone treated me differently because of my gender",discrimination
+"I was targeted because of my ethnicity",discrimination
+"A classmate made offensive comments about my culture",discrimination
+"I was treated unfairly because of my disability",discrimination
+"Someone made discriminatory jokes about my background",discrimination
+"I was excluded from an activity because of who I am",discrimination
+"I lost my school ID and don't know what to do",other
+"I have a problem with my school schedule",other
+"I need help with a school concern",other
+"There is an issue at school that I don't know how to report",other
+"I want to report something that does not fit the other categories",other
+"I need help finding a school office",other
+"I have a question about a school procedure",other
+"I need assistance with my student records",other
+"I have a problem with my class schedule",other
+"I need help replacing a lost school document",other
+"I have a general concern about school",other
+"I need information about a school service",other
+"I don't know who to contact about my school concern",other
+"I need help with a non-emergency school issue",other
+"I have a question about something at school",other
+"I need assistance with a school-related problem",other
+"I lost an item on campus and need help",other
+"I need help understanding a school policy",other
+"I have a problem that does not involve another student",other
+"I want to ask about a school service",other
