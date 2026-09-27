@@ -125,6 +125,28 @@ function CheckIcon({ className = 'h-5 w-5' }) {
   )
 }
 
+function FingerprintIcon({ className = 'h-5 w-5' }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M12 11a3 3 0 0 1 3 3v1" />
+      <path d="M9 14a3 3 0 0 1 6 0v3" />
+      <path d="M6 14a6 6 0 0 1 12 0v4" />
+      <path d="M4 14a8 8 0 0 1 16 0v2" />
+      <path d="M8 18v1" />
+      <path d="M12 18v3" />
+      <path d="M16 18v2" />
+    </svg>
+  )
+}
+
 function getInitials(name) {
   if (!name) return 'U'
 
@@ -166,14 +188,11 @@ function getRoleStyle(role) {
 function formatDate(dateString) {
   if (!dateString) return '—'
 
-  return new Date(dateString).toLocaleDateString(
-    [],
-    {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    }
-  )
+  return new Date(dateString).toLocaleDateString([], {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 export default function ProfilePage() {
@@ -185,8 +204,10 @@ export default function ProfilePage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-
   const [editing, setEditing] = useState(false)
+
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const [passkeySupported, setPasskeySupported] = useState(false)
 
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
@@ -196,6 +217,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadProfile()
+
+    if (
+      typeof window !== 'undefined' &&
+      window.PublicKeyCredential
+    ) {
+      setPasskeySupported(true)
+    }
   }, [])
 
   async function loadProfile() {
@@ -233,10 +261,7 @@ export default function ProfilePage() {
       setFullName(data?.full_name || '')
       setPhone(data?.phone || '')
     } catch (err) {
-      console.error(
-        'Failed to load profile:',
-        err
-      )
+      console.error('Failed to load profile:', err)
 
       setError(
         err.message ||
@@ -250,17 +275,14 @@ export default function ProfilePage() {
   function startEditing() {
     setError('')
     setSuccess('')
-
     setFullName(profile?.full_name || '')
     setPhone(profile?.phone || '')
-
     setEditing(true)
   }
 
   function cancelEditing() {
     setFullName(profile?.full_name || '')
     setPhone(profile?.phone || '')
-
     setError('')
     setEditing(false)
   }
@@ -302,8 +324,8 @@ export default function ProfilePage() {
       setProfile(updatedProfile)
       setFullName(updatedProfile.full_name || '')
       setPhone(updatedProfile.phone || '')
-
       setEditing(false)
+
       setSuccess(
         'Your profile has been updated successfully.'
       )
@@ -322,8 +344,54 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleRegisterPasskey() {
+    if (!passkeySupported) {
+      setError(
+        'Passkeys are not supported by this browser or device.'
+      )
+      return
+    }
+
+    setPasskeyLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const { error: passkeyError } =
+        await supabase.auth.registerPasskey()
+
+      if (passkeyError) {
+        throw passkeyError
+      }
+
+      setSuccess(
+        'Your biometric/passkey login has been set up successfully. You can now use your device authentication when signing in.'
+      )
+    } catch (err) {
+      console.error(
+        'Failed to register passkey:',
+        err
+      )
+
+      if (
+        err?.name === 'NotAllowedError'
+      ) {
+        setError(
+          'Passkey setup was cancelled or was not completed.'
+        )
+      } else {
+        setError(
+          err?.message ||
+            'Unable to set up biometric authentication.'
+        )
+      }
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
+
   function handleChangePassword() {
-  router.push('/dashboard/change-password')
+    router.push('/dashboard/change-password')
   }
 
   if (loading) {
@@ -332,9 +400,7 @@ export default function ProfilePage() {
         <div className="mx-auto max-w-5xl animate-pulse">
           <div className="h-8 w-48 rounded-lg bg-slate-200" />
           <div className="mt-3 h-4 w-72 rounded bg-slate-100" />
-
           <div className="mt-8 h-56 rounded-2xl bg-slate-100" />
-
           <div className="mt-6 h-80 rounded-2xl bg-slate-100" />
         </div>
       </div>
@@ -375,7 +441,6 @@ export default function ProfilePage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-5xl">
-        {/* Page heading */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             My Profile
@@ -386,7 +451,6 @@ export default function ProfilePage() {
           </p>
         </div>
 
-        {/* Messages */}
         {error && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
             <p className="font-semibold">
@@ -432,9 +496,7 @@ export default function ProfilePage() {
                   />
                 ) : (
                   <div className="flex h-24 w-24 items-center justify-center rounded-2xl border-4 border-white bg-gradient-to-br from-blue-600 to-indigo-700 text-2xl font-bold text-white shadow-lg sm:h-28 sm:w-28">
-                    {getInitials(
-                      profile.full_name
-                    )}
+                    {getInitials(profile.full_name)}
                   </div>
                 )}
 
@@ -450,9 +512,7 @@ export default function ProfilePage() {
                         profile.role
                       )}`}
                     >
-                      {formatRole(
-                        profile.role
-                      )}
+                      {formatRole(profile.role)}
                     </span>
                   </div>
 
@@ -519,9 +579,7 @@ export default function ProfilePage() {
                   </p>
 
                   <p className="mt-0.5 text-sm font-semibold text-slate-700">
-                    {formatDate(
-                      profile.created_at
-                    )}
+                    {formatDate(profile.created_at)}
                   </p>
                 </div>
               </div>
@@ -563,9 +621,7 @@ export default function ProfilePage() {
                   type="text"
                   value={fullName}
                   onChange={(event) =>
-                    setFullName(
-                      event.target.value
-                    )
+                    setFullName(event.target.value)
                   }
                   placeholder="Enter your full name"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
@@ -599,8 +655,7 @@ export default function ProfilePage() {
               </div>
 
               <p className="mt-1.5 text-[11px] text-slate-400">
-                Email is managed through your
-                authentication account.
+                Email is managed through your authentication account.
               </p>
             </div>
 
@@ -619,9 +674,7 @@ export default function ProfilePage() {
                   type="tel"
                   value={phone}
                   onChange={(event) =>
-                    setPhone(
-                      event.target.value
-                    )
+                    setPhone(event.target.value)
                   }
                   placeholder="Enter your phone number"
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
@@ -712,9 +765,7 @@ export default function ProfilePage() {
                     profile.role
                   )}`}
                 >
-                  {formatRole(
-                    profile.role
-                  )}
+                  {formatRole(profile.role)}
                 </span>
               </div>
             </div>
@@ -725,9 +776,7 @@ export default function ProfilePage() {
               </p>
 
               <p className="mt-2 text-sm font-semibold text-slate-700">
-                {formatDate(
-                  profile.created_at
-                )}
+                {formatDate(profile.created_at)}
               </p>
             </div>
 
@@ -745,30 +794,83 @@ export default function ProfilePage() {
 
         {/* Security */}
         <Card className="mt-6 p-5 sm:p-7">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                <ShieldIcon />
-              </div>
-
-              <div>
-                <h2 className="font-bold text-slate-900">
-                  Account Security
-                </h2>
-
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  Keep your account secure by
-                  regularly updating your password.
-                </p>
-              </div>
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+              <ShieldIcon />
             </div>
 
-            <Button
-              variant="secondary"
-              onClick={handleChangePassword}
-            >
-              Change Password
-            </Button>
+            <div>
+              <h2 className="font-bold text-slate-900">
+                Account Security
+              </h2>
+
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Manage your password and additional authentication methods.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            {/* Password */}
+            <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-800">
+                  Password
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Change your account password.
+                </p>
+              </div>
+
+              <Button
+                variant="secondary"
+                onClick={handleChangePassword}
+              >
+                Change Password
+              </Button>
+            </div>
+
+            {/* Passkey / Biometrics */}
+            <div className="flex flex-col gap-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm ring-1 ring-blue-100">
+                  <FingerprintIcon className="h-6 w-6" />
+                </div>
+
+                <div>
+                  <p className="text-sm font-bold text-slate-900">
+                    Face & Biometrics
+                  </p>
+
+                  <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-600">
+                    Use your device's secure authentication, such as Windows Hello, Face ID, fingerprint, or PIN, to sign in to CCTC SafeSpace.
+                  </p>
+
+                  <p className="mt-2 text-[11px] font-medium text-blue-700">
+                    Your biometric information stays on your device.
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0">
+                {passkeySupported ? (
+                  <Button
+                    variant="primary"
+                    onClick={handleRegisterPasskey}
+                    disabled={passkeyLoading}
+                  >
+                    {passkeyLoading
+                      ? 'Setting up...'
+                      : 'Set Up Biometrics'}
+                  </Button>
+                ) : (
+                  <span className="inline-flex rounded-xl bg-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-500">
+                    Not Supported
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </Card>
       </div>
