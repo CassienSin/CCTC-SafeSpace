@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/client'
@@ -196,7 +196,7 @@ function CameraIcon({ className = 'h-5 w-5' }) {
   )
 }
 
-export default function FaceVerificationPage({ unlockMode = false }) {
+function FaceVerificationContent({ unlockMode = false }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedNext = searchParams.get('next')
@@ -1933,6 +1933,22 @@ export default function FaceVerificationPage({ unlockMode = false }) {
     </div>
   )
 }
+
+export default function FaceVerificationPage(props) {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-sm text-white">
+          Loading face verification...
+        </main>
+      }
+    >
+      <FaceVerificationContent {...props} />
+    </Suspense>
+  )
+}
+
+
 
 
 
