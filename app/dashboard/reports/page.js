@@ -176,6 +176,28 @@ function SeverityBadge({ severity }) {
   )
 }
 
+function aiReviewRequired(report) {
+  const category = report.ai_category
+  const severity = report.ai_severity
+
+  return (
+    ['self_harm', 'threat', 'violence'].includes(category) ||
+    ['high', 'critical'].includes(severity)
+  )
+}
+
+function AiBadge({ report }) {
+  if (!report.ai_category && !report.ai_severity) {
+    return null
+  }
+
+  return (
+    <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/15">
+      AI assessed
+    </span>
+  )
+}
+
 export default function ReportsPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -235,6 +257,8 @@ export default function ReportsPage() {
           title,
           category,
           severity,
+          ai_category,
+          ai_severity,
           status,
           location,
           incident_date,
@@ -301,7 +325,7 @@ export default function ReportsPage() {
       const matchesSeverity =
         !isStaff ||
         severityFilter === 'all' ||
-        report.severity === severityFilter
+        (report.ai_severity || report.severity) === severityFilter
 
       const query = search.trim().toLowerCase()
 
@@ -326,6 +350,25 @@ export default function ReportsPage() {
     }
   )
 
+  const prioritizedReports = [...filteredReports].sort((a, b) => {
+    if (!isStaff) return 0
+
+    const severityRank = {
+      critical: 4,
+      high: 3,
+      medium: 2,
+      low: 1,
+    }
+
+    const aSeverity = severityRank[a.ai_severity || a.severity] || 0
+    const bSeverity = severityRank[b.ai_severity || b.severity] || 0
+    const aReview = aiReviewRequired(a) ? 1 : 0
+    const bReview = aiReviewRequired(b) ? 1 : 0
+
+    return bReview - aReview || bSeverity - aSeverity
+  })
+
+  const priorityCount = reports.filter(aiReviewRequired).length
   const totalReports = reports.length
 
   const openReports = reports.filter(
@@ -471,6 +514,22 @@ export default function ReportsPage() {
             </p>
           </Card>
         </div>
+
+        {isStaff && priorityCount > 0 && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+              !
+            </div>
+            <div>
+              <p className="text-sm font-bold text-red-800">
+                {priorityCount} report{priorityCount === 1 ? '' : 's'} need human review
+              </p>
+              <p className="mt-1 text-xs leading-5 text-red-700">
+                The AI detected a high-risk category or severity. Review these reports first, then make the final determination yourself.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <Card className="mb-6 p-4 sm:p-5">
@@ -647,7 +706,7 @@ export default function ReportsPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {filteredReports.map((report) => (
+            {prioritizedReports.map((report) => (
               <Link
                 key={report.id}
                 href={`/dashboard/reports/${report.id}`}
@@ -664,12 +723,20 @@ export default function ReportsPage() {
                         </h2>
 
                         <SeverityBadge
-                          severity={report.severity}
+                          severity={report.ai_severity || report.severity}
                         />
 
                         <StatusBadge
                           status={report.status}
                         />
+
+                        {isStaff && <AiBadge report={report} />}
+
+                        {isStaff && aiReviewRequired(report) && (
+                          <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/15">
+                            Human review
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -679,8 +746,14 @@ export default function ReportsPage() {
                           </p>
 
                           <p className="mt-1 text-sm font-medium text-slate-700">
-                            {formatText(report.category)}
+                            {formatText(report.ai_category || report.category)}
                           </p>
+
+                          {isStaff && report.ai_category && (
+                            <p className="mt-1 text-[11px] text-indigo-600">
+                              AI classification
+                            </p>
+                          )}
                         </div>
 
                         <div>

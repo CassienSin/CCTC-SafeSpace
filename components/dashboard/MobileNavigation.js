@@ -43,6 +43,22 @@ function Icon({ name, className = 'h-5 w-5' }) {
       </svg>
     ),
 
+    assistant: (
+      <svg {...common}>
+        <path d="M12 3a7 7 0 0 0-7 7v3a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-3a7 7 0 0 0-7-7Z" />
+        <path d="M9 17v1a3 3 0 0 0 6 0v-1" />
+        <path d="M9 10h.01M15 10h.01" />
+        <path d="M12 3V1" />
+      </svg>
+    ),
+
+    support: (
+      <svg {...common}>
+        <path d="M12 21s-7-4.4-7-10.2A4.8 4.8 0 0 1 9.8 6c1 0 1.8.4 2.2 1.1C12.4 6.4 13.2 6 14.2 6A4.8 4.8 0 0 1 19 10.8C19 16.6 12 21 12 21Z" />
+        <path d="M8.5 12h1.8l.8-1.5 1.8 3 1-1.5h1.6" />
+      </svg>
+    ),
+
     bell: (
       <svg {...common}>
         <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
@@ -125,6 +141,17 @@ export default function MobileNavigation() {
       label: 'Messages',
       href: '/dashboard/messages',
       icon: 'message',
+    },
+    {
+      label: 'Assistant',
+      href: '/dashboard/assistant',
+      icon: 'assistant',
+    },
+    {
+      label: 'Support',
+      href: '/dashboard/support',
+      icon: 'support',
+      studentOnly: true,
     },
     {
       label: 'Alerts',
@@ -218,7 +245,7 @@ export default function MobileNavigation() {
 
         <div className="mx-auto flex max-w-lg items-center justify-around">
 
-          {items.map((item) => {
+          {items.filter((item) => !item.studentOnly || role === 'student').map((item) => {
             const active = isActive(item)
 
             return (
@@ -274,3 +301,5 @@ export default function MobileNavigation() {
     </>
   )
 }
+
+

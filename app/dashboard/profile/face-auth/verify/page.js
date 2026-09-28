@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
@@ -196,8 +196,13 @@ function CameraIcon({ className = 'h-5 w-5' }) {
   )
 }
 
-export default function FaceVerificationPage() {
+export default function FaceVerificationPage({ unlockMode = false }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const requestedNext = searchParams.get('next')
+  const nextPath = requestedNext?.startsWith('/')
+    ? requestedNext
+    : '/dashboard'
 
   const supabaseRef = useRef(null)
 
@@ -227,6 +232,7 @@ export default function FaceVerificationPage() {
   const [humanReady, setHumanReady] = useState(false)
   const [modelReady, setModelReady] = useState(false)
   const [cameraReady, setCameraReady] = useState(false)
+  const [cameraRequested, setCameraRequested] = useState(false)
 
   const [cameraError, setCameraError] = useState('')
 
@@ -321,15 +327,42 @@ export default function FaceVerificationPage() {
       }
     }
 
-    context.lineWidth = 2
+    const live = Number(face?.real ?? 0) >= HUMAN_LIVENESS_THRESHOLD
+    const accent = live ? '52, 211, 153' : '56, 189, 248'
+    const landmarkPoints = new Map()
+
+    for (const [startIndex, endIndex] of FACE_CONNECTIONS) {
+      const start = point(startIndex)
+      const end = point(endIndex)
+      if (start) landmarkPoints.set(startIndex, start)
+      if (end) landmarkPoints.set(endIndex, end)
+    }
+
     context.lineCap = 'round'
     context.lineJoin = 'round'
 
-    context.strokeStyle =
-      Number(face?.real ?? 0) >=
-      HUMAN_LIVENESS_THRESHOLD
-        ? 'rgba(52, 211, 153, 0.88)'
-        : 'rgba(96, 165, 250, 0.82)'
+    context.save()
+    context.lineWidth = 5
+    context.strokeStyle = `rgba(${accent}, 0.16)`
+    context.shadowColor = `rgba(${accent}, 0.95)`
+    context.shadowBlur = 18
+
+    for (const [startIndex, endIndex] of FACE_CONNECTIONS) {
+      const start = point(startIndex)
+      const end = point(endIndex)
+      if (!start || !end) continue
+
+      context.beginPath()
+      context.moveTo(start.x, start.y)
+      context.lineTo(end.x, end.y)
+      context.stroke()
+    }
+
+    context.restore()
+    context.lineWidth = 1.35
+    context.strokeStyle = `rgba(${accent}, 0.92)`
+    context.shadowColor = `rgba(${accent}, 0.95)`
+    context.shadowBlur = 6
 
     for (
       const [
@@ -355,6 +388,34 @@ export default function FaceVerificationPage() {
       )
       context.stroke()
     }
+
+    context.shadowBlur = 10
+    context.fillStyle = `rgba(${accent}, 0.95)`
+
+    for (const { x, y } of landmarkPoints.values()) {
+      context.beginPath()
+      context.arc(x, y, 2.1, 0, Math.PI * 2)
+      context.fill()
+    }
+
+    const nose = point(1)
+    if (nose) {
+      context.shadowBlur = 14
+      context.lineWidth = 1.25
+      context.beginPath()
+      context.arc(nose.x, nose.y, 8, 0, Math.PI * 2)
+      context.stroke()
+      context.beginPath()
+      context.moveTo(nose.x - 13, nose.y)
+      context.lineTo(nose.x - 6, nose.y)
+      context.moveTo(nose.x + 6, nose.y)
+      context.lineTo(nose.x + 13, nose.y)
+      context.moveTo(nose.x, nose.y - 13)
+      context.lineTo(nose.x, nose.y - 6)
+      context.moveTo(nose.x, nose.y + 6)
+      context.lineTo(nose.x, nose.y + 13)
+      context.stroke()
+    }
   }, [])
 
   const clearFaceMesh = useCallback(() => {
@@ -372,26 +433,21 @@ export default function FaceVerificationPage() {
     }
   }, [])
 
-  const stopEverything =
+  // Stops only the camera and scan loop. Human remains loaded for retries.
+  const stopCamera =
     useCallback(() => {
       cancelledRef.current = true
       loopRunningRef.current = false
 
       if (loopTimeoutRef.current) {
-        clearTimeout(
-          loopTimeoutRef.current,
-        )
-
+        clearTimeout(loopTimeoutRef.current)
         loopTimeoutRef.current = null
       }
 
       if (streamRef.current) {
         streamRef.current
           .getTracks()
-          .forEach((track) =>
-            track.stop(),
-          )
-
+          .forEach((track) => track.stop())
         streamRef.current = null
       }
 
@@ -400,18 +456,7 @@ export default function FaceVerificationPage() {
         videoRef.current.srcObject = null
       }
 
-      if (humanRef.current) {
-        try {
-          humanRef.current.stop?.()
-        } catch {
-          // Human may already be stopped.
-        }
-      }
-
-      humanRef.current = null
-
       clearFaceMesh()
-
       setCameraReady(false)
     }, [clearFaceMesh])
 
@@ -552,13 +597,21 @@ export default function FaceVerificationPage() {
           comparison,
         )
 
+        const failureMessage =
+          !livePassed
+            ? 'Liveness verification failed. Make sure your face is clearly visible and use the live camera.'
+            : !blinkDetectedRef.current
+              ? 'Blink required. Please blink naturally once while your face is visible.'
+              : matchedCount < REQUIRED_MATCHES ||
+                  averageSimilarity < MIN_AVERAGE_SIMILARITY
+                ? 'Face not recognized. The detected face does not match the enrolled face profile.'
+                : 'Face verification did not pass. Please try again.'
+
         setResult({
           matched,
-
           message: matched
             ? 'Your live face matched the enrolled face profile across multiple scans.'
-            : 'The face could not be verified. Please look at the camera, blink naturally, and try again.',
-
+            : failureMessage,
           comparison,
         })
 
@@ -570,6 +623,18 @@ export default function FaceVerificationPage() {
           setInstruction(
             'Face verified successfully.',
           )
+
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(
+              'cctc_unlock_at',
+              String(Date.now()),
+            )
+          }
+
+          setTimeout(() => {
+            router.push(nextPath)
+            router.refresh()
+          }, 700)
         } else {
           setVerificationPhase(
             'failed',
@@ -580,7 +645,7 @@ export default function FaceVerificationPage() {
           )
         }
 
-        stopEverything()
+        stopCamera()
       } catch (error) {
         console.error(
           'Face verification failed:',
@@ -606,7 +671,9 @@ export default function FaceVerificationPage() {
         setVerifying(false)
       }
     }, [
-      stopEverything,
+      stopCamera,
+      nextPath,
+      router,
       verifying,
     ])
 
@@ -990,7 +1057,7 @@ export default function FaceVerificationPage() {
         )
 
         setInstruction(
-          'Face-recognition engine ready. Starting camera...',
+          'Face-recognition engine ready. Click Start Camera & Scan when you are ready.',
         )
       } catch (error) {
         console.error(
@@ -1029,6 +1096,10 @@ export default function FaceVerificationPage() {
     }
 
     if (cameraReady) {
+      return
+    }
+
+    if (!cameraRequested) {
       return
     }
 
@@ -1204,9 +1275,59 @@ export default function FaceVerificationPage() {
     cameraError,
     cameraReady,
     humanReady,
+    cameraRequested,
     runLoop,
   ])
 
+  const handleStartCamera = useCallback(() => {
+    setCameraError('')
+    setResult(null)
+    setFinished(false)
+    setFaceDetected(false)
+    setFaceReady(false)
+    setFaceScore(0)
+    setScanCount(0)
+    setCountdown(0)
+    setBlinkDetected(false)
+    setVerificationPhase('loading')
+    setInstruction('Starting camera...')
+    scanSamplesRef.current = []
+    blinkDetectedRef.current = false
+    stableSinceRef.current = null
+    nextCaptureAtRef.current = 0
+    cancelledRef.current = false
+    setCameraRequested(true)
+  }, [])
+
+  const handleRetry = useCallback(() => {
+    stopCamera()
+    setCameraRequested(false)
+    setCameraError('')
+    setResult(null)
+    setFinished(false)
+    setFaceDetected(false)
+    setFaceReady(false)
+    setFaceScore(0)
+    setScanCount(0)
+    setCountdown(0)
+    setBlinkDetected(false)
+    setVerificationPhase('loading')
+    setInstruction('Ready when you are. Click Start Camera & Scan to try again.')
+    scanSamplesRef.current = []
+    blinkDetectedRef.current = false
+    stableSinceRef.current = null
+    nextCaptureAtRef.current = 0
+  }, [stopCamera])
+
+  const stopEverything = useCallback(() => {
+    stopCamera()
+    try {
+      humanRef.current?.stop?.()
+    } catch {
+      // Human may already be stopped.
+    }
+    humanRef.current = null
+  }, [stopCamera])
   /*
    * Cleanup on page exit.
    */
@@ -1218,6 +1339,10 @@ export default function FaceVerificationPage() {
 
   function handleCancel() {
     stopEverything()
+    if (unlockMode) {
+      supabase.auth.signOut().finally(() => router.replace('/login'))
+      return
+    }
     router.push('/dashboard/profile')
   }
 
@@ -1242,20 +1367,20 @@ export default function FaceVerificationPage() {
               : 'Face recognition ready'
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl">
+    <div className="min-h-[100dvh] w-full overflow-x-hidden p-2 pb-28 sm:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-5xl">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <button
-              type="button"
-              onClick={
-                handleCancel
-              }
-              className="mb-3 text-sm font-medium text-slate-500 transition hover:text-slate-800"
-            >
-              ← Back to Profile
-            </button>
+            {!unlockMode && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="mb-3 text-sm font-medium text-slate-500 transition hover:text-slate-800"
+              >
+                ← Back to Profile
+              </button>
+            )}
 
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
@@ -1263,7 +1388,7 @@ export default function FaceVerificationPage() {
               </div>
 
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
                   Face Verification
                 </h1>
 
@@ -1301,10 +1426,10 @@ export default function FaceVerificationPage() {
         )}
 
         {/* Main */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mt-3 grid gap-3 lg:mt-6 lg:gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           {/* Camera */}
-          <Card className="overflow-hidden p-3 sm:p-4">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-950">
+          <Card className="overflow-hidden p-1.5 sm:p-4">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-950 sm:aspect-video">
               <video
                 ref={videoRef}
                 muted
@@ -1324,12 +1449,12 @@ export default function FaceVerificationPage() {
 
               <div className="pointer-events-none absolute inset-0">
                 {/* Status */}
-                <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
-                  <div className="rounded-full border border-white/20 bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+                <div className="absolute left-2 right-2 top-2 flex items-center justify-between gap-2 sm:left-4 sm:right-4 sm:top-4">
+                  <div className="rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur-md sm:px-3 sm:py-1.5 sm:text-xs">
                     {phaseLabel}
                   </div>
 
-                  <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-3 py-1.5 text-xs text-white backdrop-blur-md">
+                  <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[10px] text-white backdrop-blur-md sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs">
                     <span
                       className={`h-2 w-2 rounded-full ${
                         faceDetected
@@ -1347,7 +1472,7 @@ export default function FaceVerificationPage() {
                 {/* Face guide */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div
-                    className={`relative h-[72%] w-[55%] max-w-[340px] rounded-[48%] border-2 border-dashed transition-colors sm:h-[78%] sm:w-[48%] ${
+                    className={`relative h-[72%] w-[62%] max-w-[280px] rounded-[48%] border-2 border-dashed transition-colors sm:h-[78%] sm:w-[48%] ${
                       faceReady
                         ? 'border-emerald-300'
                         : verificationPhase ===
@@ -1370,8 +1495,8 @@ export default function FaceVerificationPage() {
                 </div>
 
                 {/* Instruction */}
-                <div className="absolute bottom-5 left-4 right-4 flex justify-center">
-                  <div className="max-w-xl rounded-2xl border border-white/15 bg-black/50 px-5 py-3 text-center text-sm font-semibold text-white shadow-xl backdrop-blur-md">
+                <div className="absolute bottom-3 left-2 right-2 flex justify-center sm:bottom-5 sm:left-4 sm:right-4">
+                  <div className="max-w-xl rounded-2xl border border-white/15 bg-black/55 px-3 py-2.5 text-center text-xs font-semibold text-white shadow-xl backdrop-blur-md sm:px-5 sm:py-3 sm:text-base">
                     {instruction}
 
                     {countdown >
@@ -1387,9 +1512,7 @@ export default function FaceVerificationPage() {
               </div>
 
               {/* Loading overlay */}
-              {(loading ||
-                (humanReady &&
-                  !cameraReady)) &&
+              {((loading || (cameraRequested && humanReady && !cameraReady))) &&
                 !cameraError &&
                 verificationPhase !==
                   'verified' &&
@@ -1409,8 +1532,22 @@ export default function FaceVerificationPage() {
                 )}
             </div>
 
+            {!cameraReady && !cameraRequested && !finished && (
+              <div className="px-1 pt-4">
+                <Button
+                  onClick={handleStartCamera}
+                  disabled={!humanReady || loading}
+                  className="min-h-12 w-full text-base"
+                >
+                  <CameraIcon className="mr-2 h-5 w-5" />
+                  {loading
+                    ? 'Preparing face recognition...'
+                    : 'Start Camera & Scan'}
+                </Button>
+              </div>
+            )}
             {/* Progress */}
-            <div className="px-1 pb-1 pt-5">
+            <div className="px-1 pb-1 pt-3 sm:pt-5">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-800">
                   Verification Progress
@@ -1436,7 +1573,7 @@ export default function FaceVerificationPage() {
           </Card>
 
           {/* Identity panel */}
-          <Card className="p-5 sm:p-6">
+          <Card className="p-3 sm:p-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                 <FaceIcon className="h-5 w-5" />
@@ -1558,7 +1695,7 @@ export default function FaceVerificationPage() {
                         faceScore *
                           100,
                       )}%`
-                    : '—'}
+                    : 'Ã¢â‚¬â€'}
                 </span>
               </div>
 
@@ -1605,7 +1742,7 @@ export default function FaceVerificationPage() {
                     <Button
                       variant="primary"
                       disabled
-                      className="w-full"
+                      className="min-h-12 w-full text-base"
                     >
                       {verifying
                         ? 'Verifying...'
@@ -1736,17 +1873,24 @@ export default function FaceVerificationPage() {
                 </div>
 
                 <div className="mt-4">
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      router.push(
-                        '/dashboard/profile',
-                      )
-                    }
-                    className="w-full"
-                  >
-                    Back to Profile
-                  </Button>
+                  {!result.matched && (
+                    <Button
+                      onClick={handleRetry}
+                      className="mb-3 w-full"
+                    >
+                      Try Again
+                    </Button>
+                  )}
+
+                  {!unlockMode && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => router.push('/dashboard/profile')}
+                      className="min-h-12 w-full text-base"
+                    >
+                      Back to Profile
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
@@ -1758,7 +1902,7 @@ export default function FaceVerificationPage() {
                   onClick={
                     handleCancel
                   }
-                  className="w-full"
+                  className="min-h-12 w-full text-base"
                 >
                   Cancel
                 </Button>
@@ -1789,3 +1933,6 @@ export default function FaceVerificationPage() {
     </div>
   )
 }
+
+
+

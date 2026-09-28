@@ -552,7 +552,7 @@ export default function DashboardPage() {
               </Link>
 
               <Link
-                href="/dashboard/messages"
+                href="/dashboard/support"
                 className="group"
               >
                 <Card className="h-full p-5 transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg">
@@ -561,7 +561,7 @@ export default function DashboardPage() {
 
                     <div>
                       <p className="text-sm font-semibold text-slate-500">
-                        SafeSpace
+                        Support Resources
                       </p>
 
                       <p className="mt-2 text-xl font-bold text-slate-900">
@@ -569,7 +569,7 @@ export default function DashboardPage() {
                       </p>
 
                       <p className="mt-1 text-xs text-slate-400">
-                        Talk to someone
+                        Emergency contacts and guidance
                       </p>
                     </div>
 
@@ -713,6 +713,15 @@ export default function DashboardPage() {
                     'Stay updated on your reports and conversations.',
                   label: 'View notifications →',
                   color: 'amber',
+                },
+                {
+                  href: '/dashboard/support',
+                  icon: 'shield',
+                  title: 'Support Resources',
+                  description:
+                    'Find emergency contacts and guidance support.',
+                  label: 'Open support →',
+                  color: 'emerald',
                 },
                 {
                   href: '/dashboard/profile',
@@ -1415,3 +1424,5 @@ function QuickActions({ actions }) {
     </section>
   )
 }
+
+

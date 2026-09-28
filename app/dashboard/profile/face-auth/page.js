@@ -136,6 +136,13 @@ export default function FaceAuthenticationPage() {
   )
   const [finishing, setFinishing] = useState(false)
   const [finished, setFinished] = useState(false)
+  const [cameraRequested, setCameraRequested] = useState(false)
+  const [existingEnrollment, setExistingEnrollment] = useState(false)
+  const [changeFaceOpen, setChangeFaceOpen] = useState(false)
+  const [enrollmentAuthorized, setEnrollmentAuthorized] = useState(false)
+  const [password, setPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [authorizingChange, setAuthorizingChange] = useState(false)
 
   const drawFaceMesh = useCallback((face) => {
     const canvas = canvasRef.current
@@ -169,12 +176,33 @@ export default function FaceAuthenticationPage() {
     }
 
     context.lineWidth = 1.8
+    const live = Number(face?.real ?? 0) >= LIVENESS_THRESHOLD
+    const accent = live
+      ? '52, 211, 153'
+      : '56, 189, 248'
+
+    const landmarkPoints = new Map()
+
+    for (const [startIndex, endIndex] of FACE_CONNECTIONS) {
+      const start = point(startIndex)
+      const end = point(endIndex)
+      if (start) landmarkPoints.set(startIndex, start)
+      if (end) landmarkPoints.set(endIndex, end)
+    }
+
     context.lineCap = 'round'
     context.lineJoin = 'round'
     context.strokeStyle =
       Number(face?.real ?? 0) >= LIVENESS_THRESHOLD
         ? 'rgba(52, 211, 153, 0.9)'
         : 'rgba(96, 165, 250, 0.85)'
+
+    // Soft neon halo behind the skeleton.
+    context.save()
+    context.lineWidth = 5
+    context.strokeStyle = `rgba(${accent}, 0.16)`
+    context.shadowColor = `rgba(${accent}, 0.95)`
+    context.shadowBlur = 18
 
     for (const [startIndex, endIndex] of FACE_CONNECTIONS) {
       const start = point(startIndex)
@@ -186,6 +214,58 @@ export default function FaceAuthenticationPage() {
       context.lineTo(end.x, end.y)
       context.stroke()
     }
+
+    context.restore()
+
+    // Crisp HUD-style skeleton lines.
+    context.lineWidth = 1.35
+    context.strokeStyle = `rgba(${accent}, 0.92)`
+    context.shadowColor = `rgba(${accent}, 0.95)`
+    context.shadowBlur = 6
+
+    for (const [startIndex, endIndex] of FACE_CONNECTIONS) {
+      const start = point(startIndex)
+      const end = point(endIndex)
+      if (!start || !end) continue
+
+      context.beginPath()
+      context.moveTo(start.x, start.y)
+      context.lineTo(end.x, end.y)
+      context.stroke()
+    }
+
+    // Small glowing nodes make the tracked landmarks visible without
+    // changing the underlying Human landmark data or scan behavior.
+    context.shadowBlur = 10
+    context.fillStyle = `rgba(${accent}, 0.95)`
+
+    for (const { x, y } of landmarkPoints.values()) {
+      context.beginPath()
+      context.arc(x, y, 2.1, 0, Math.PI * 2)
+      context.fill()
+    }
+
+    // Center reticle gives the scanner a polished biometric HUD feel.
+    const nose = point(1)
+    if (nose) {
+      context.shadowBlur = 14
+      context.strokeStyle = `rgba(${accent}, 0.95)`
+      context.lineWidth = 1.25
+      context.beginPath()
+      context.arc(nose.x, nose.y, 8, 0, Math.PI * 2)
+      context.stroke()
+      context.beginPath()
+      context.moveTo(nose.x - 13, nose.y)
+      context.lineTo(nose.x - 6, nose.y)
+      context.moveTo(nose.x + 6, nose.y)
+      context.lineTo(nose.x + 13, nose.y)
+      context.moveTo(nose.x, nose.y - 13)
+      context.lineTo(nose.x, nose.y - 6)
+      context.moveTo(nose.x, nose.y + 6)
+      context.lineTo(nose.x, nose.y + 13)
+      context.stroke()
+    }
+
   }, [])
 
   const clearFaceMesh = useCallback(() => {
@@ -226,6 +306,78 @@ export default function FaceAuthenticationPage() {
     setCameraReady(false)
   }, [clearFaceMesh])
 
+  const authorizeFaceReplacement = useCallback(async () => {
+    setPasswordError('')
+
+    if (!password.trim()) {
+      setPasswordError('Enter your account password to continue.')
+      return
+    }
+
+    setAuthorizingChange(true)
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError || !user?.email) {
+        throw new Error('Your session has expired. Please log in again.')
+      }
+
+      const { error: passwordError } =
+        await supabase.auth.signInWithPassword({
+          email: user.email,
+          password,
+        })
+
+      if (passwordError) throw new Error('Password verification failed.')
+
+      setEnrollmentAuthorized(true)
+      setChangeFaceOpen(false)
+      setPassword('')
+      setInstruction('Identity confirmed. You can now start face enrollment.')
+    } catch (error) {
+      setPasswordError(error?.message || 'Password verification failed.')
+    } finally {
+      setAuthorizingChange(false)
+    }
+  }, [password, supabase])
+
+  const handleStartCamera = useCallback(() => {
+    if (existingEnrollment && !enrollmentAuthorized) {
+      setChangeFaceOpen(true)
+      return
+    }
+
+    setCameraError('')
+    setCameraRequested(true)
+  }, [enrollmentAuthorized, existingEnrollment])
+
+  const handleRetry = useCallback(() => {
+    stopEverything()
+    setCameraRequested(false)
+    setCameraError('')
+    setFinished(false)
+    setFinishing(false)
+    setScanCount(0)
+    setCountdown(0)
+    setFaceDetected(false)
+    setFaceReady(false)
+    setFaceScore(0)
+    setRealScore(0)
+    setLiveScore(0)
+    setBlinkDetected(false)
+    embeddingsRef.current = []
+    finishedRef.current = false
+    finishingRef.current = false
+    cancelledRef.current = false
+    blinkDetectedRef.current = false
+    stableSinceRef.current = null
+    nextCaptureAtRef.current = 0
+    setInstruction('Ready when you are. Click Start Camera & Scan to try again.')
+  }, [stopEverything])
   const finishEnrollment = useCallback(async () => {
     if (
       finishingRef.current ||
@@ -317,7 +469,14 @@ export default function FaceAuthenticationPage() {
           'Something went wrong while saving your face enrollment.',
       )
     }
-  }, [finishing, router, stopEverything, supabase])
+  }, [
+    existingEnrollment,
+    enrollmentAuthorized,
+    finishing,
+    router,
+    stopEverything,
+    supabase,
+  ])
 
   const runLoop = useCallback(async () => {
     if (loopRunningRef.current || cancelledRef.current || finishedRef.current) {
@@ -503,8 +662,22 @@ export default function FaceAuthenticationPage() {
           return
         }
 
-        // Enrollment creates/replaces the template. It does not require
-        // an existing compatible face record.
+        const { data: existingFace, error: existingFaceError } =
+          await supabase
+            .from('face_enrollments')
+            .select('user_id')
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+        if (existingFaceError) throw existingFaceError
+
+        const hasExistingFace = Boolean(existingFace)
+        setExistingEnrollment(hasExistingFace)
+        setEnrollmentAuthorized(!hasExistingFace)
+        setChangeFaceOpen(hasExistingFace)
+
+        // Enrollment creates/replaces the template only after the replacement
+        // confirmation and password re-authentication have succeeded.
         const human = await createHuman()
 
         if (!active) {
@@ -517,7 +690,11 @@ export default function FaceAuthenticationPage() {
         humanRef.current = human
         setHumanReady(true)
         setLoading(false)
-        setInstruction('Face-recognition engine ready. Starting camera...')
+        setInstruction(
+          hasExistingFace
+            ? 'Face profile found. Confirm replacement to continue.'
+            : 'Face-recognition engine ready. Click Start Camera & Scan when you are ready.',
+        )
       } catch (error) {
         console.error('Face enrollment initialization failed:', error)
 
@@ -539,7 +716,14 @@ export default function FaceAuthenticationPage() {
   }, [router, supabase])
 
   useEffect(() => {
-    if (!humanReady || cameraReady || cameraError || finished) return
+    if (
+      !humanReady ||
+      cameraReady ||
+      cameraError ||
+      finished ||
+      !cameraRequested ||
+      !enrollmentAuthorized
+    ) return
 
     let active = true
 
@@ -627,7 +811,15 @@ export default function FaceAuthenticationPage() {
     return () => {
       active = false
     }
-  }, [cameraError, cameraReady, finished, humanReady, runLoop])
+  }, [
+    cameraError,
+    cameraReady,
+    cameraRequested,
+    enrollmentAuthorized,
+    finished,
+    humanReady,
+    runLoop,
+  ])
 
   useEffect(() => {
     return () => {
@@ -643,8 +835,53 @@ export default function FaceAuthenticationPage() {
   const progress = (scanCount / TOTAL_SCANS) * 100
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-6xl">
+    <>
+      {changeFaceOpen && existingEnrollment && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+        <Card className="w-full max-w-md p-6 shadow-2xl">
+          <h2 className="text-lg font-bold text-slate-900">
+            Change your face profile?
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            A face profile is already configured. Replacing it will save a new
+            face profile for this account.
+          </p>
+          <label className="mt-5 block text-sm font-medium text-slate-700">
+            Confirm with your password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              placeholder="Your account password"
+            />
+          </label>
+          {passwordError && (
+            <p className="mt-2 text-sm text-red-600">{passwordError}</p>
+          )}
+          <div className="mt-6 flex gap-3">
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => router.push('/dashboard/profile')}
+              disabled={authorizingChange}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={authorizeFaceReplacement}
+              disabled={authorizingChange || !password}
+            >
+              {authorizingChange ? 'Verifying...' : 'Confirm & Continue'}
+            </Button>
+          </div>
+        </Card>
+      </div>
+    )}
+    <div className="min-h-[100dvh] w-full overflow-x-hidden p-3 pb-28 sm:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-5xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <button
@@ -693,9 +930,9 @@ export default function FaceAuthenticationPage() {
           </Card>
         )}
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <Card className="overflow-hidden p-3 sm:p-4">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-950">
+        <div className="mt-5 grid gap-5 lg:mt-8 lg:gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <Card className="overflow-hidden border-white/80 bg-white/90 p-2 shadow-xl shadow-slate-200/60 backdrop-blur sm:p-4">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-slate-950 shadow-inner sm:rounded-[2rem] sm:aspect-video">
               <video
                 ref={videoRef}
                 muted
@@ -711,14 +948,14 @@ export default function FaceAuthenticationPage() {
               />
 
               <div className="pointer-events-none absolute inset-0">
-                <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
-                  <div className="rounded-full border border-white/20 bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+                <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-2 sm:left-5 sm:right-5 sm:top-5">
+                  <div className="rounded-full border border-white/20 bg-slate-950/55 px-2.5 py-1.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-md sm:px-3 sm:text-xs">
                     {humanReady
                       ? 'Face recognition ready'
                       : 'Loading scanner...'}
                   </div>
 
-                  <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-3 py-1.5 text-xs text-white backdrop-blur-md">
+                  <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/55 px-2.5 py-1.5 text-[10px] text-white shadow-lg backdrop-blur-md sm:gap-2 sm:px-3 sm:text-xs">
                     <span
                       className={`h-2 w-2 rounded-full ${
                         faceDetected ? 'bg-emerald-400' : 'bg-amber-400'
@@ -730,7 +967,7 @@ export default function FaceAuthenticationPage() {
 
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div
-                    className={`relative h-[72%] w-[55%] max-w-[340px] rounded-[48%] border-2 border-dashed transition-colors sm:h-[78%] sm:w-[48%] ${
+                    className={`relative h-[70%] w-[58%] max-w-[320px] rounded-[48%] border-2 border-dashed transition-colors sm:h-[78%] sm:w-[48%] ${
                       faceReady ? 'border-emerald-300' : 'border-white/35'
                     }`}
                   >
@@ -741,8 +978,8 @@ export default function FaceAuthenticationPage() {
                   </div>
                 </div>
 
-                <div className="absolute bottom-5 left-4 right-4 flex justify-center">
-                  <div className="max-w-xl rounded-2xl border border-white/15 bg-black/50 px-5 py-3 text-center text-sm font-semibold text-white shadow-xl backdrop-blur-md">
+                <div className="absolute bottom-3 left-3 right-3 flex justify-center sm:bottom-5 sm:left-5 sm:right-5">
+                  <div className="max-w-xl rounded-2xl border border-white/15 bg-slate-950/65 px-3 py-2.5 text-center text-xs font-semibold text-white shadow-xl backdrop-blur-md sm:px-5 sm:py-3 sm:text-sm">
                     {instruction}
                     {countdown > 0 && scanCount < TOTAL_SCANS
                       ? ` ${countdown}s`
@@ -765,6 +1002,18 @@ export default function FaceAuthenticationPage() {
               )}
             </div>
 
+            {!cameraReady && !cameraRequested && !finished && (
+              <div className="px-1 pt-4">
+                <Button
+                  onClick={handleStartCamera}
+                  disabled={!humanReady || loading}
+                  className="w-full"
+                >
+                  <CameraIcon className="mr-2 h-5 w-5" />
+                  {loading ? 'Preparing face recognition...' : 'Start Camera & Scan'}
+                </Button>
+              </div>
+            )}
             <div className="px-1 pb-1 pt-5">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-800">
@@ -784,7 +1033,7 @@ export default function FaceAuthenticationPage() {
             </div>
           </Card>
 
-          <Card className="p-5 sm:p-6">
+          <Card className="p-4 shadow-lg shadow-slate-200/40 sm:p-6 lg:sticky lg:top-6 lg:self-start">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                 <FaceIcon className="h-5 w-5" />
@@ -948,6 +1197,6 @@ export default function FaceAuthenticationPage() {
           </div>
         </Card>
       </div>
-    </div>
+    </div>    </>
   )
 }

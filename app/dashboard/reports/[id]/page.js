@@ -296,6 +296,13 @@ function SeverityBadge({ severity }) {
   )
 }
 
+function aiReviewRequired(report) {
+  return (
+    ['self_harm', 'threat', 'violence'].includes(report.ai_category) ||
+    ['high', 'critical'].includes(report.ai_severity)
+  )
+}
+
 function InfoItem({
   icon,
   label,
@@ -835,6 +842,12 @@ export default function ReportDetailsPage() {
                   severity={report.severity}
                 />
 
+                {isStaff && report.ai_severity && (
+                  <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/15">
+                    AI: {formatLabel(report.ai_severity)}
+                  </span>
+                )}
+
                 <StatusBadge
                   status={report.status}
                 />
@@ -918,6 +931,65 @@ export default function ReportDetailsPage() {
                 }
               />
             </div>
+
+            {isStaff && (report.ai_category || report.ai_severity) && (
+              <div className={`mt-6 rounded-2xl border p-5 ${
+                aiReviewRequired(report)
+                  ? 'border-red-200 bg-red-50'
+                  : 'border-indigo-100 bg-indigo-50/70'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    aiReviewRequired(report)
+                      ? 'bg-red-100 text-red-600'
+                      : 'bg-indigo-100 text-indigo-600'
+                  }`}>
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3 5 6v5c0 4.8 2.9 8.5 7 10 4.1-1.5 7-5.2 7-10V6l-7-3Z" />
+                      <path d="M9 12h6M12 9v6" />
+                    </svg>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className={`text-sm font-bold ${
+                        aiReviewRequired(report) ? 'text-red-900' : 'text-indigo-900'
+                      }`}>
+                        AI assessment
+                      </h2>
+
+                      {aiReviewRequired(report) && (
+                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700">
+                          Human review required
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {report.ai_category && (
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">AI category</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-800">{formatLabel(report.ai_category)}</p>
+                        </div>
+                      )}
+
+                      {report.ai_severity && (
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">AI severity</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-800">{formatLabel(report.ai_severity)}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className={`mt-3 text-xs leading-5 ${
+                      aiReviewRequired(report) ? 'text-red-800' : 'text-indigo-800'
+                    }`}>
+                      This is an automated recommendation based on the report text. Authorized staff must review the incident and make the final decision.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Staff reporter notice */}
             {isStaff && (

@@ -53,6 +53,15 @@ function Icon({ name, className = 'h-5 w-5' }) {
       </svg>
     ),
 
+    assistant: (
+      <svg {...common}>
+        <path d="M12 3a7 7 0 0 0-7 7v3a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-3a7 7 0 0 0-7-7Z" />
+        <path d="M9 17v1a3 3 0 0 0 6 0v-1" />
+        <path d="M9 10h.01M15 10h.01" />
+        <path d="M12 3V1" />
+      </svg>
+    ),
+
     bell: (
       <svg {...common}>
         <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
@@ -216,6 +225,18 @@ export default function Sidebar() {
       href: '/dashboard/messages',
       icon: 'message',
       roles: ['student', 'teacher', 'counselor', 'admin'],
+    },
+    {
+      label: 'Assistant',
+      href: '/dashboard/assistant',
+      icon: 'assistant',
+      roles: ['student', 'teacher', 'counselor', 'admin'],
+    },
+    {
+      label: 'Support Resources',
+      href: '/dashboard/support',
+      icon: 'shield',
+      roles: ['student'],
     },
     {
       label: 'Notifications',
@@ -399,3 +420,5 @@ export default function Sidebar() {
     </aside>
   )
 }
+
+

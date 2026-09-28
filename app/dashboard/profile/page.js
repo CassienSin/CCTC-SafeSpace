@@ -185,6 +185,7 @@ export default function ProfilePage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const [editing, setEditing] = useState(false)
 
@@ -384,6 +385,25 @@ export default function ProfilePage() {
 
   function handleChangePassword() {
   router.push('/dashboard/change-password')
+  }
+
+  async function handleLogout() {
+  if (loggingOut) return
+
+  setLoggingOut(true)
+  setError('')
+  sessionStorage.removeItem('cctc_unlock_at')
+
+  const { error: logoutError } = await supabase.auth.signOut()
+
+  if (logoutError) {
+    setError('Unable to log out. Please try again.')
+    setLoggingOut(false)
+    return
+  }
+
+  router.replace('/login')
+  router.refresh()
   }
 
   if (loading) {
@@ -904,6 +924,29 @@ export default function ProfilePage() {
                   {profile.face_auth_enabled
                     ? 'Manage Face Authentication'
                     : 'Set Up Face Authentication'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-slate-100 pt-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Sign out
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Sign out of your SafeSpace account on this device.
+                  </p>
+                </div>
+
+                <Button
+                  variant="secondary"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="w-full sm:w-auto"
+                >
+                  {loggingOut ? 'Signing out...' : 'Log Out'}
                 </Button>
               </div>
             </div>
