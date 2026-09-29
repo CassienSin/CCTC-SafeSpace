@@ -880,9 +880,9 @@ export default function FaceAuthenticationPage() {
         </Card>
       </div>
     )}
-    <div className="min-h-[100dvh] w-full overflow-x-hidden p-3 pb-28 sm:p-6 lg:p-8">
+    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-slate-950 pb-24 sm:bg-transparent sm:p-6 sm:pb-8 lg:p-8">
       <div className="mx-auto w-full max-w-5xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="px-4 pb-3 pt-4 text-white sm:px-0 sm:pb-0 sm:pt-0 sm:text-slate-900">
           <div>
             <button
               type="button"
@@ -893,15 +893,15 @@ export default function FaceAuthenticationPage() {
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-300 sm:h-11 sm:w-11 sm:bg-indigo-50 sm:text-indigo-600">
                 <FaceIcon />
               </div>
 
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                <h1 className="text-xl font-bold tracking-tight sm:text-2xl sm:text-slate-900 lg:text-3xl">
                   Face Authentication
                 </h1>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-xs text-slate-300 sm:text-sm sm:text-slate-500">
                   Create your face profile using continuous recognition scans.
                 </p>
               </div>
@@ -930,9 +930,9 @@ export default function FaceAuthenticationPage() {
           </Card>
         )}
 
-        <div className="mt-5 grid gap-5 lg:mt-8 lg:gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <Card className="overflow-hidden border-white/80 bg-white/90 p-2 shadow-xl shadow-slate-200/60 backdrop-blur sm:p-4">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-slate-950 shadow-inner sm:rounded-[2rem] sm:aspect-video">
+        <div className="mt-0 grid gap-3 sm:mt-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8">
+          <Card className="overflow-hidden rounded-none border-0 bg-slate-950 p-0 shadow-none sm:rounded-3xl sm:border-white/80 sm:bg-white/90 sm:p-4 sm:shadow-xl">
+            <div className="relative aspect-[3/4] overflow-hidden bg-slate-950 shadow-inner sm:rounded-[2rem] sm:aspect-video">
               <video
                 ref={videoRef}
                 muted
@@ -948,14 +948,14 @@ export default function FaceAuthenticationPage() {
               />
 
               <div className="pointer-events-none absolute inset-0">
-                <div className="absolute left-3 right-3 top-3 flex items-center justify-between gap-2 sm:left-5 sm:right-5 sm:top-5">
-                  <div className="rounded-full border border-white/20 bg-slate-950/55 px-2.5 py-1.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-md sm:px-3 sm:text-xs">
+                <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-2 sm:left-5 sm:right-5 sm:top-5">
+                  <div className="rounded-full border border-white/20 bg-slate-950/60 px-3 py-1.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-md sm:px-3 sm:text-xs">
                     {humanReady
                       ? 'Face recognition ready'
                       : 'Loading scanner...'}
                   </div>
 
-                  <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/55 px-2.5 py-1.5 text-[10px] text-white shadow-lg backdrop-blur-md sm:gap-2 sm:px-3 sm:text-xs">
+                  <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/60 px-3 py-1.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-md sm:gap-2 sm:px-3 sm:text-xs">
                     <span
                       className={`h-2 w-2 rounded-full ${
                         faceDetected ? 'bg-emerald-400' : 'bg-amber-400'
@@ -967,7 +967,7 @@ export default function FaceAuthenticationPage() {
 
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div
-                    className={`relative h-[70%] w-[58%] max-w-[320px] rounded-[48%] border-2 border-dashed transition-colors sm:h-[78%] sm:w-[48%] ${
+                    className={`relative h-[68%] w-[70%] max-w-[320px] rounded-[48%] border-2 border-dashed transition-colors sm:h-[78%] sm:w-[48%] ${
                       faceReady ? 'border-emerald-300' : 'border-white/35'
                     }`}
                   >
@@ -1033,7 +1033,7 @@ export default function FaceAuthenticationPage() {
             </div>
           </Card>
 
-          <Card className="p-4 shadow-lg shadow-slate-200/40 sm:p-6 lg:sticky lg:top-6 lg:self-start">
+          <Card className="rounded-2xl border-slate-200 p-3 shadow-lg shadow-slate-200/40 sm:rounded-3xl sm:p-6 lg:sticky lg:top-6 lg:self-start">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                 <FaceIcon className="h-5 w-5" />
@@ -1046,7 +1046,7 @@ export default function FaceAuthenticationPage() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-4 grid grid-cols-5 gap-2 sm:mt-6 sm:block sm:space-y-3">
               {Array.from({ length: TOTAL_SCANS }, (_, index) => {
                 const complete = scanCount > index
                 const active = !finished && scanCount === index
@@ -1054,7 +1054,7 @@ export default function FaceAuthenticationPage() {
                 return (
                   <div
                     key={index}
-                    className={`flex items-center gap-3 rounded-xl border px-3 py-3 ${
+                    className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 sm:flex-row sm:items-center sm:gap-3 sm:px-3 sm:py-3 ${
                       complete
                         ? 'border-emerald-100 bg-emerald-50'
                         : active
@@ -1080,7 +1080,7 @@ export default function FaceAuthenticationPage() {
 
                     <div>
                       <p
-                        className={`text-sm font-semibold ${
+                        className={`text-[10px] font-semibold sm:text-sm ${
                           complete
                             ? 'text-emerald-800'
                             : active
@@ -1090,7 +1090,7 @@ export default function FaceAuthenticationPage() {
                       >
                         Scan {index + 1}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-slate-500">
+                      <p className="mt-0.5 hidden text-[11px] text-slate-500 sm:block">
                         {complete
                           ? 'Captured'
                           : active
@@ -1200,3 +1200,5 @@ export default function FaceAuthenticationPage() {
     </div>    </>
   )
 }
+
+

@@ -1367,10 +1367,10 @@ function FaceVerificationContent({ unlockMode = false }) {
               : 'Face recognition ready'
 
   return (
-    <div className="min-h-[100dvh] w-full overflow-x-hidden p-2 pb-28 sm:p-6 lg:p-8">
+    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-slate-950 pb-24 sm:bg-transparent sm:p-6 sm:pb-8 lg:p-8">
       <div className="mx-auto w-full max-w-5xl">
         {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="px-4 pb-3 pt-4 text-white sm:px-0 sm:pb-0 sm:pt-0 sm:text-slate-900">
           <div>
             {!unlockMode && (
               <button
@@ -1383,16 +1383,16 @@ function FaceVerificationContent({ unlockMode = false }) {
             )}
 
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-300 sm:h-11 sm:w-11 sm:bg-indigo-50 sm:text-indigo-600">
                 <FaceIcon />
               </div>
 
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
+                <h1 className="text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
                   Face Verification
                 </h1>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-xs text-slate-300 sm:text-sm sm:text-slate-500">
                   Continuous face tracking and multi-scan identity verification.
                 </p>
               </div>
@@ -1426,10 +1426,10 @@ function FaceVerificationContent({ unlockMode = false }) {
         )}
 
         {/* Main */}
-        <div className="mt-3 grid gap-3 lg:mt-6 lg:gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mt-0 grid gap-3 sm:mt-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
           {/* Camera */}
-          <Card className="overflow-hidden p-1.5 sm:p-4">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-950 sm:aspect-video">
+          <Card className="overflow-hidden rounded-none border-0 bg-slate-950 p-0 shadow-none sm:rounded-3xl sm:border sm:bg-white sm:p-4 sm:shadow-xl">
+            <div className="relative aspect-[3/4] overflow-hidden bg-slate-950 sm:aspect-video sm:rounded-2xl">
               <video
                 ref={videoRef}
                 muted
@@ -1449,12 +1449,12 @@ function FaceVerificationContent({ unlockMode = false }) {
 
               <div className="pointer-events-none absolute inset-0">
                 {/* Status */}
-                <div className="absolute left-2 right-2 top-2 flex items-center justify-between gap-2 sm:left-4 sm:right-4 sm:top-4">
-                  <div className="rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur-md sm:px-3 sm:py-1.5 sm:text-xs">
+                <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-2 sm:left-4 sm:right-4 sm:top-4">
+                  <div className="rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-md sm:px-3 sm:py-1.5 sm:text-xs">
                     {phaseLabel}
                   </div>
 
-                  <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[10px] text-white backdrop-blur-md sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs">
+                  <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-md sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs">
                     <span
                       className={`h-2 w-2 rounded-full ${
                         faceDetected
@@ -1472,7 +1472,7 @@ function FaceVerificationContent({ unlockMode = false }) {
                 {/* Face guide */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div
-                    className={`relative h-[72%] w-[62%] max-w-[280px] rounded-[48%] border-2 border-dashed transition-colors sm:h-[78%] sm:w-[48%] ${
+                    className={`relative h-[68%] w-[70%] max-w-[320px] rounded-[48%] border-2 border-dashed transition-colors sm:h-[78%] sm:w-[48%] ${
                       faceReady
                         ? 'border-emerald-300'
                         : verificationPhase ===
@@ -1573,7 +1573,7 @@ function FaceVerificationContent({ unlockMode = false }) {
           </Card>
 
           {/* Identity panel */}
-          <Card className="p-3 sm:p-6">
+          <Card className="rounded-2xl border-slate-200 p-3 sm:rounded-3xl sm:p-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                 <FaceIcon className="h-5 w-5" />
@@ -1591,7 +1591,7 @@ function FaceVerificationContent({ unlockMode = false }) {
             </div>
 
             {/* Scan list */}
-            <div className="mt-6 space-y-3">
+            <div className="mt-4 grid grid-cols-5 gap-2 sm:mt-6 sm:block sm:space-y-3">
               {Array.from(
                 {
                   length:
@@ -1614,7 +1614,7 @@ function FaceVerificationContent({ unlockMode = false }) {
                       key={
                         index
                       }
-                      className={`flex items-center gap-3 rounded-xl border px-3 py-3 transition ${
+                      className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 transition sm:flex-row sm:items-center sm:gap-3 sm:px-3 sm:py-3 ${
                         complete
                           ? 'border-emerald-100 bg-emerald-50'
                           : active
@@ -1642,8 +1642,8 @@ function FaceVerificationContent({ unlockMode = false }) {
                       </div>
 
                       <div>
-                        <p
-                          className={`text-sm font-semibold ${
+                          <p
+                          className={`text-[10px] font-semibold sm:text-sm ${
                             complete
                               ? 'text-emerald-800'
                               : active
@@ -1656,7 +1656,7 @@ function FaceVerificationContent({ unlockMode = false }) {
                             1}
                         </p>
 
-                        <p className="mt-0.5 text-[11px] text-slate-500">
+                        <p className="mt-0.5 hidden text-[11px] text-slate-500 sm:block">
                           {complete
                             ? 'Captured'
                             : active
@@ -1671,7 +1671,7 @@ function FaceVerificationContent({ unlockMode = false }) {
             </div>
 
             {/* Scanner information */}
-            <div className="mt-6 space-y-2 rounded-2xl bg-slate-50 p-4 text-[11px] text-slate-500">
+            <div className="mt-4 hidden space-y-2 rounded-2xl bg-slate-50 p-4 text-[11px] text-slate-500 sm:mt-6 sm:block">
               <div className="flex justify-between gap-3">
                 <span>
                   Face detected
