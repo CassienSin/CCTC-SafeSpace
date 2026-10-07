@@ -191,7 +191,7 @@ export default function RegisterPage() {
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 autoComplete="name"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                className="w-full rounded-xl border border-slate-200 bg-white !text-slate-900 placeholder:text-slate-400 color-scheme-light px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
             </div>
 
@@ -208,7 +208,7 @@ export default function RegisterPage() {
                 onChange={(e) => setContact(e.target.value)}
                 required
                 autoComplete="username"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                className="w-full rounded-xl border border-slate-200 bg-white !text-slate-900 placeholder:text-slate-400 color-scheme-light px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
 
               <p className="mt-1.5 text-xs text-slate-400">
@@ -256,7 +256,7 @@ export default function RegisterPage() {
                 required
                 minLength={6}
                 autoComplete="new-password"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                className="w-full rounded-xl border border-slate-200 bg-white !text-slate-900 placeholder:text-slate-400 color-scheme-light px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
             </div>
 
@@ -274,7 +274,7 @@ export default function RegisterPage() {
                 required
                 minLength={6}
                 autoComplete="new-password"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                className="w-full rounded-xl border border-slate-200 bg-white !text-slate-900 placeholder:text-slate-400 color-scheme-light px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
               />
             </div>
 
@@ -322,3 +322,4 @@ export default function RegisterPage() {
     </main>
   )
 }
+
