@@ -16,24 +16,9 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
 
   async function finishPasswordLogin(user) {
-    const { data: enrollment, error } = await supabase
-      .from('face_enrollments')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (error) {
-      await supabase.auth.signOut()
-      throw new Error('Unable to check your face-verification profile.')
-    }
-
+    // Face verification is optional. A valid password login goes directly
+    // to the dashboard; users can still enroll or use face unlock from Profile.
     sessionStorage.removeItem('cctc_unlock_at')
-
-    if (enrollment) {
-      router.replace('/auth/unlock/face?next=/dashboard')
-      return
-    }
-
     sessionStorage.setItem('cctc_unlock_at', String(Date.now()))
     router.replace('/dashboard')
     router.refresh()
