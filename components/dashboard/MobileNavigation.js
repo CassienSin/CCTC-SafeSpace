@@ -59,6 +59,15 @@ function Icon({ name, className = 'h-5 w-5' }) {
       </svg>
     ),
 
+    users: (
+      <svg {...common}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+
     bell: (
       <svg {...common}>
         <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
@@ -164,6 +173,12 @@ export default function MobileNavigation() {
       href: '/dashboard/profile',
       icon: 'user',
     },
+    {
+      label: 'Users',
+      href: '/dashboard/users',
+      icon: 'users',
+      adminOnly: true,
+    },
   ]
 
   function isActive(item) {
@@ -245,7 +260,13 @@ export default function MobileNavigation() {
 
         <div className="mx-auto flex max-w-lg items-center justify-around">
 
-          {items.filter((item) => !item.studentOnly || role === 'student').map((item) => {
+          {items
+            .filter(
+              (item) =>
+                (!item.studentOnly || role === 'student') &&
+                (!item.adminOnly || role === 'admin')
+            )
+            .map((item) => {
             const active = isActive(item)
 
             return (
@@ -294,12 +315,14 @@ export default function MobileNavigation() {
                 </span>
               </Link>
             )
-          })}
+            })}
 
         </div>
       </nav>
     </>
   )
 }
+
+
 
 
