@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+import { ClassificationBadge } from '@/components/reports/HandbookAssessment'
+import { categoryLabel } from '@/lib/reports/handbook'
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -120,21 +122,6 @@ function formatDate(date) {
   )
 }
 
-function severityStyle(severity) {
-  switch (severity) {
-    case 'critical':
-      return 'bg-red-50 text-red-700 ring-red-600/15'
-    case 'high':
-      return 'bg-orange-50 text-orange-700 ring-orange-600/15'
-    case 'medium':
-      return 'bg-amber-50 text-amber-700 ring-amber-600/15'
-    case 'low':
-      return 'bg-emerald-50 text-emerald-700 ring-emerald-600/15'
-    default:
-      return 'bg-slate-100 text-slate-600 ring-slate-500/10'
-  }
-}
-
 function statusStyle(status) {
   switch (status) {
     case 'submitted':
@@ -164,38 +151,9 @@ function StatusBadge({ status }) {
   )
 }
 
-function SeverityBadge({ severity }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${severityStyle(
-        severity
-      )}`}
-    >
-      {formatText(severity)}
-    </span>
-  )
-}
-
-function aiReviewRequired(report) {
-  const category = report.ai_category
-  const severity = report.ai_severity
-
-  return (
-    ['self_harm', 'threat', 'violence'].includes(category) ||
-    ['high', 'critical'].includes(severity)
-  )
-}
-
-function AiBadge({ report }) {
-  if (!report.ai_category && !report.ai_severity) {
-    return null
-  }
-
-  return (
-    <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/15">
-      AI assessed
-    </span>
-  )
+function reviewRequired(report) {
+  return (report.offense_classification || 'pending') === 'pending'
+    && !['resolved', 'closed'].includes(report.status)
 }
 
 export default function ReportsPage() {
@@ -210,7 +168,7 @@ export default function ReportsPage() {
   const [statusFilter, setStatusFilter] =
     useState('all')
 
-  const [severityFilter, setSeverityFilter] =
+  const [classificationFilter, setClassificationFilter] =
     useState('all')
 
   const [search, setSearch] = useState('')
@@ -256,9 +214,7 @@ export default function ReportsPage() {
           id,
           title,
           category,
-          severity,
-          ai_category,
-          ai_severity,
+          offense_classification,
           status,
           location,
           incident_date,
@@ -322,10 +278,10 @@ export default function ReportsPage() {
         statusFilter === 'all' ||
         report.status === statusFilter
 
-      const matchesSeverity =
+      const matchesClassification =
         !isStaff ||
-        severityFilter === 'all' ||
-        (report.ai_severity || report.severity) === severityFilter
+        classificationFilter === 'all' ||
+        (report.offense_classification || 'pending') === classificationFilter
 
       const query = search.trim().toLowerCase()
 
@@ -344,31 +300,16 @@ export default function ReportsPage() {
 
       return (
         matchesStatus &&
-        matchesSeverity &&
+        matchesClassification &&
         matchesSearch
       )
     }
   )
 
-  const prioritizedReports = [...filteredReports].sort((a, b) => {
-    if (!isStaff) return 0
+  // Keep newest-first ordering; offense classification is not an urgency score.
+  const prioritizedReports = filteredReports
 
-    const severityRank = {
-      critical: 4,
-      high: 3,
-      medium: 2,
-      low: 1,
-    }
-
-    const aSeverity = severityRank[a.ai_severity || a.severity] || 0
-    const bSeverity = severityRank[b.ai_severity || b.severity] || 0
-    const aReview = aiReviewRequired(a) ? 1 : 0
-    const bReview = aiReviewRequired(b) ? 1 : 0
-
-    return bReview - aReview || bSeverity - aSeverity
-  })
-
-  const priorityCount = reports.filter(aiReviewRequired).length
+  const priorityCount = reports.filter(reviewRequired).length
   const totalReports = reports.length
 
   const openReports = reports.filter(
@@ -525,7 +466,7 @@ export default function ReportsPage() {
                 {priorityCount} report{priorityCount === 1 ? '' : 's'} need human review
               </p>
               <p className="mt-1 text-xs leading-5 text-red-700">
-                The AI detected a high-risk category or severity. Review these reports first, then make the final determination yourself.
+                These open reports are awaiting a handbook assessment. This count is not an urgency ranking; contact appropriate help immediately for a safety emergency.
               </p>
             </div>
           </div>
@@ -595,28 +536,18 @@ export default function ReportsPage() {
                   </select>
 
                   <select
-                    value={severityFilter}
+                    value={classificationFilter}
                     onChange={(event) =>
-                      setSeverityFilter(event.target.value)
+                      setClassificationFilter(event.target.value)
                     }
-                    aria-label="Filter by severity"
+                    aria-label="Filter by handbook classification"
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                   >
-                    <option value="all">
-                      All Severities
-                    </option>
-                    <option value="critical">
-                      Critical
-                    </option>
-                    <option value="high">
-                      High
-                    </option>
-                    <option value="medium">
-                      Medium
-                    </option>
-                    <option value="low">
-                      Low
-                    </option>
+                    <option value="all">All classifications</option>
+                    <option value="pending">Pending assessment</option>
+                    <option value="minor">Minor offense classification</option>
+                    <option value="major">Major offense classification</option>
+                    <option value="not_applicable">Not an offense / support concern</option>
                   </select>
                 </>
               )}
@@ -637,13 +568,13 @@ export default function ReportsPage() {
                 </p>
 
                 {(statusFilter !== 'all' ||
-                  severityFilter !== 'all' ||
+                  classificationFilter !== 'all' ||
                   search) && (
                   <button
                     type="button"
                     onClick={() => {
                       setStatusFilter('all')
-                      setSeverityFilter('all')
+                      setClassificationFilter('all')
                       setSearch('')
                     }}
                     className="text-xs font-semibold text-blue-600 hover:text-blue-700"
@@ -696,7 +627,7 @@ export default function ReportsPage() {
                   className="mt-6"
                   onClick={() => {
                     setStatusFilter('all')
-                    setSeverityFilter('all')
+                    setClassificationFilter('all')
                     setSearch('')
                   }}
                 >
@@ -722,17 +653,14 @@ export default function ReportsPage() {
                           {report.title}
                         </h2>
 
-                        <SeverityBadge
-                          severity={report.ai_severity || report.severity}
-                        />
+                        <ClassificationBadge value={report.offense_classification} />
 
                         <StatusBadge
                           status={report.status}
                         />
 
-                        {isStaff && <AiBadge report={report} />}
 
-                        {isStaff && aiReviewRequired(report) && (
+                        {isStaff && reviewRequired(report) && (
                           <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/15">
                             Human review
                           </span>
@@ -746,14 +674,10 @@ export default function ReportsPage() {
                           </p>
 
                           <p className="mt-1 text-sm font-medium text-slate-700">
-                            {formatText(report.ai_category || report.category)}
+                            {categoryLabel(report.category)}
                           </p>
 
-                          {isStaff && report.ai_category && (
-                            <p className="mt-1 text-[11px] text-indigo-600">
-                              AI classification
-                            </p>
-                          )}
+
                         </div>
 
                         <div>

@@ -46,7 +46,7 @@ export async function PATCH(request) {
   const supabase = await createClient()
 
   const { error } = await supabase.rpc(
-    'admin_update_user_role',
+    'safespace_set_user_role',
     {
       target_user_id: userId,
       new_role: role,

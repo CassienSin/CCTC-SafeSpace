@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { ClassificationBadge } from '@/components/reports/HandbookAssessment'
+import { categoryLabel } from '@/lib/reports/handbook'
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 
@@ -191,7 +193,7 @@ export default function DashboardPage() {
       let query = supabase
         .from('reports')
         .select(
-          'id, title, category, severity, status, location, incident_date, created_at, anonymous, reporter_id'
+          'id, title, category, offense_classification, status, location, incident_date, created_at, anonymous, reporter_id'
         )
         .order('created_at', {
           ascending: false,
@@ -307,18 +309,6 @@ export default function DashboardPage() {
     )
   }
 
-  function formatCategory(category) {
-    if (!category) {
-      return 'Other'
-    }
-
-    return category
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (letter) =>
-        letter.toUpperCase()
-      )
-  }
-
   function formatStatus(status) {
     if (!status) {
       return 'Submitted'
@@ -329,20 +319,6 @@ export default function DashboardPage() {
       .replace(/\b\w/g, (letter) =>
         letter.toUpperCase()
       )
-  }
-
-  function getSeverityStyle(severity) {
-    const styles = {
-      low: 'bg-emerald-50 text-emerald-700',
-      medium: 'bg-amber-50 text-amber-700',
-      high: 'bg-orange-50 text-orange-700',
-      critical: 'bg-red-50 text-red-700',
-    }
-
-    return (
-      styles[severity] ||
-      'bg-slate-100 text-slate-600'
-    )
   }
 
   function getStatusStyle(status) {
@@ -617,8 +593,6 @@ export default function DashboardPage() {
                   emptyText="You haven't submitted any reports yet."
                   showCreate
                   formatDate={formatDate}
-                  formatCategory={formatCategory}
-                  getSeverityStyle={getSeverityStyle}
                   getStatusStyle={getStatusStyle}
                   formatStatus={formatStatus}
                 />
@@ -904,8 +878,6 @@ export default function DashboardPage() {
                   reports={reports}
                   emptyText="There are currently no reports to review."
                   formatDate={formatDate}
-                  formatCategory={formatCategory}
-                  getSeverityStyle={getSeverityStyle}
                   getStatusStyle={getStatusStyle}
                   formatStatus={formatStatus}
                 />
@@ -1120,8 +1092,6 @@ export default function DashboardPage() {
                   reports={reports}
                   emptyText="There are currently no reports in the system."
                   formatDate={formatDate}
-                  formatCategory={formatCategory}
-                  getSeverityStyle={getSeverityStyle}
                   getStatusStyle={getStatusStyle}
                   formatStatus={formatStatus}
                 />
@@ -1220,8 +1190,6 @@ function ReportList({
   emptyText,
   showCreate = false,
   formatDate,
-  formatCategory,
-  getSeverityStyle,
   getStatusStyle,
   formatStatus,
 }) {
@@ -1273,13 +1241,7 @@ function ReportList({
 
               <div className="flex flex-wrap items-center gap-2">
 
-                <span
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${getSeverityStyle(
-                    report.severity
-                  )}`}
-                >
-                  {report.severity}
-                </span>
+                <ClassificationBadge value={report.offense_classification} />
 
                 <span
                   className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${getStatusStyle(
@@ -1296,7 +1258,7 @@ function ReportList({
               </h3>
 
               <p className="mt-1 text-xs text-slate-400">
-                {formatCategory(report.category)}
+                {categoryLabel(report.category)}
 
                 {report.location
                   ? ` • ${report.location}`
@@ -1424,5 +1386,3 @@ function QuickActions({ actions }) {
     </section>
   )
 }
-
-

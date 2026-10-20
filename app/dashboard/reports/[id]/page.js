@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+import HandbookAssessment, { ClassificationBadge } from '@/components/reports/HandbookAssessment'
+import { categoryLabel, classificationLabel } from '@/lib/reports/handbook'
 import { createClient } from '@/lib/supabase/client'
 
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -231,25 +233,6 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function severityStyle(severity) {
-  switch (severity) {
-    case 'critical':
-      return 'bg-red-50 text-red-700 ring-red-600/15'
-
-    case 'high':
-      return 'bg-orange-50 text-orange-700 ring-orange-600/15'
-
-    case 'medium':
-      return 'bg-amber-50 text-amber-700 ring-amber-600/15'
-
-    case 'low':
-      return 'bg-emerald-50 text-emerald-700 ring-emerald-600/15'
-
-    default:
-      return 'bg-slate-100 text-slate-600 ring-slate-500/10'
-  }
-}
-
 function statusStyle(status) {
   switch (status) {
     case 'submitted':
@@ -281,25 +264,6 @@ function StatusBadge({ status }) {
     >
       {formatLabel(status)}
     </span>
-  )
-}
-
-function SeverityBadge({ severity }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${severityStyle(
-        severity
-      )}`}
-    >
-      {formatLabel(severity)}
-    </span>
-  )
-}
-
-function aiReviewRequired(report) {
-  return (
-    ['self_harm', 'threat', 'violence'].includes(report.ai_category) ||
-    ['high', 'critical'].includes(report.ai_severity)
   )
 }
 
@@ -838,15 +802,7 @@ export default function ReportDetailsPage() {
               </div>
 
               <div className="flex shrink-0 flex-wrap gap-2">
-                <SeverityBadge
-                  severity={report.severity}
-                />
-
-                {isStaff && report.ai_severity && (
-                  <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/15">
-                    AI: {formatLabel(report.ai_severity)}
-                  </span>
-                )}
+                <ClassificationBadge value={report.offense_classification} />
 
                 <StatusBadge
                   status={report.status}
@@ -873,19 +829,15 @@ export default function ReportDetailsPage() {
                   <ShieldIcon className="h-4 w-4" />
                 }
                 label="Category"
-                value={formatLabel(
-                  report.category
-                )}
+                value={categoryLabel(report.category)}
               />
 
               <InfoItem
                 icon={
                   <ShieldIcon className="h-4 w-4" />
                 }
-                label="Severity"
-                value={formatLabel(
-                  report.severity
-                )}
+                label="Handbook classification"
+                value={classificationLabel(report.offense_classification)}
               />
 
               <InfoItem
@@ -923,73 +875,21 @@ export default function ReportDetailsPage() {
                 icon={
                   <UserIcon className="h-4 w-4" />
                 }
-                label="Anonymous Report"
+                label="Submission type"
                 value={
                   report.anonymous
-                    ? 'Yes'
-                    : 'No'
+                    ? 'Historical anonymous report'
+                    : 'Identified report'
                 }
               />
             </div>
 
-            {isStaff && (report.ai_category || report.ai_severity) && (
-              <div className={`mt-6 rounded-2xl border p-5 ${
-                aiReviewRequired(report)
-                  ? 'border-red-200 bg-red-50'
-                  : 'border-indigo-100 bg-indigo-50/70'
-              }`}>
-                <div className="flex items-start gap-3">
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                    aiReviewRequired(report)
-                      ? 'bg-red-100 text-red-600'
-                      : 'bg-indigo-100 text-indigo-600'
-                  }`}>
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 3 5 6v5c0 4.8 2.9 8.5 7 10 4.1-1.5 7-5.2 7-10V6l-7-3Z" />
-                      <path d="M9 12h6M12 9v6" />
-                    </svg>
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className={`text-sm font-bold ${
-                        aiReviewRequired(report) ? 'text-red-900' : 'text-indigo-900'
-                      }`}>
-                        AI assessment
-                      </h2>
-
-                      {aiReviewRequired(report) && (
-                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700">
-                          Human review required
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      {report.ai_category && (
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">AI category</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-800">{formatLabel(report.ai_category)}</p>
-                        </div>
-                      )}
-
-                      {report.ai_severity && (
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">AI severity</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-800">{formatLabel(report.ai_severity)}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <p className={`mt-3 text-xs leading-5 ${
-                      aiReviewRequired(report) ? 'text-red-800' : 'text-indigo-800'
-                    }`}>
-                      This is an automated recommendation based on the report text. Authorized staff must review the incident and make the final decision.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+            <HandbookAssessment
+              key={report.id}
+              report={report}
+              role={role}
+              onSaved={setReport}
+            />
 
             {/* Staff reporter notice */}
             {isStaff && (

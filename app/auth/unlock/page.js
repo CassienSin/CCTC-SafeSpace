@@ -139,7 +139,7 @@
             type="button"
             onClick={() =>
                 router.push(
-                `/auth/unlock/face?next=${encodeURIComponent(
+                `/auth/face-login?next=${encodeURIComponent(
                     nextPath
                 )}`
                 )

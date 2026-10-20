@@ -1,20 +1,15 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import { Suspense } from 'react'
-import FaceVerificationPage from '@/app/dashboard/profile/face-auth/verify/page'
-
-function LoadingFaceVerification() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-sm text-white">
-      Loading face verification...
-    </main>
-  )
-}
-
-export default function FaceUnlockPage() {
-  return (
-    <Suspense fallback={<LoadingFaceVerification />}>
-      <FaceVerificationPage unlockMode />
-    </Suspense>
-  )
+export default async function FaceUnlockPage({ searchParams }) {
+  const params = await searchParams
+  const requested = params?.next
+  let next = '/dashboard'
+  if (typeof requested === 'string') {
+    try {
+      const base = 'https://safespace.local'
+      const target = new URL(requested, base)
+      if (target.origin === base) next = `${target.pathname}${target.search}${target.hash}`
+    } catch {}
+  }
+  redirect(`/auth/face-login?next=${encodeURIComponent(next)}`)
 }

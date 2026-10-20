@@ -11,7 +11,7 @@ const initialMessage = {
 const quickPrompts = [
   'How do I report an incident?',
   'What happens after I submit a report?',
-  'Can I submit a report anonymously?',
+  'Who can review my incident report?',
 ]
 
 export default function SafeSpaceAssistantPage() {

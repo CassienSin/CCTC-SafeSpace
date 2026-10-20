@@ -6,24 +6,32 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:face-pilot": "next build --webpack",
+    "test:face-login": "node --test tests/face-login-policy.test.mjs tests/face-login-server.test.mjs",
+    "test:face-login-db": "node tests/face-login-database.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",
     "@mediapipe/tasks-vision": "^1.0.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
-    "@vladmandic/human": "^3.3.6",
+    "@vladmandic/human": "3.3.6",
     "groq-sdk": "^1.6.0",
     "next": "16.3.6",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "@tensorflow/tfjs-core": "4.22.0",
+    "@tensorflow/tfjs-converter": "4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "4.22.0",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "@electric-sql/pglite": "0.5.10"
   }
 }

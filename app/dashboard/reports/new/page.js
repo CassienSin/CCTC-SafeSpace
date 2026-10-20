@@ -1,6 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  EVIDENCE_ACCEPT, MAX_EVIDENCE_FILES, evidenceFormat,
+  ensureReportSaved, uploadEvidenceJob,
+} from '@/lib/reports/evidenceUpload'
+import { handbookCategories } from '@/lib/reports/handbook'
 import { useRouter } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/client'
@@ -83,84 +88,6 @@ function LockIcon({ className = 'h-4 w-4' }) {
   )
 }
 
-const categories = [
-  {
-    value: 'bullying',
-    label: 'Bullying',
-    description:
-      'Repeated teasing, intimidation, exclusion, or other bullying behavior.',
-  },
-  {
-    value: 'harassment',
-    label: 'Harassment',
-    description:
-      'Unwanted behavior, comments, or conduct that causes distress.',
-  },
-  {
-    value: 'threat',
-    label: 'Threat',
-    description:
-      'Threats of harm, intimidation, or behavior that makes you feel unsafe.',
-  },
-  {
-    value: 'violence',
-    label: 'Violence',
-    description:
-      'Physical violence, assault, fighting, or physical harm.',
-  },
-  {
-    value: 'self_harm',
-    label: 'Self-Harm',
-    description:
-      'A concern involving self-harm or possible risk of self-harm.',
-  },
-  {
-    value: 'cyberbullying',
-    label: 'Cyberbullying',
-    description:
-      'Bullying, harassment, or intimidation through online platforms.',
-  },
-  {
-    value: 'discrimination',
-    label: 'Discrimination',
-    description:
-      'Unfair or harmful treatment based on a protected or personal characteristic.',
-  },
-  {
-    value: 'other',
-    label: 'Other',
-    description:
-      'A safety concern that does not fit another category.',
-  },
-]
-
-const severityOptions = [
-  {
-    value: 'low',
-    label: 'Low',
-    description:
-      'A concern that does not appear immediately dangerous.',
-  },
-  {
-    value: 'medium',
-    label: 'Medium',
-    description:
-      'A significant concern that should be reviewed.',
-  },
-  {
-    value: 'high',
-    label: 'High',
-    description:
-      'A serious concern requiring prompt attention.',
-  },
-  {
-    value: 'critical',
-    label: 'Critical',
-    description:
-      'An immediate or potentially life-threatening concern.',
-  },
-]
-
 export default function NewReportPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -170,15 +97,73 @@ export default function NewReportPage() {
   const [description, setDescription] = useState('')
   const [location, setLocation] = useState('')
   const [incidentDate, setIncidentDate] = useState('')
-  const [severity, setSeverity] = useState('medium')
-  const [anonymous, setAnonymous] = useState(false)
+  const submittingRef = useRef(false)
+  const reportAttemptRef = useRef(null)
+  const evidenceJobsRef = useRef([])
+  const fileInputRef = useRef(null)
+  const [attachments, setAttachments] = useState([])
+  const [savedReportId, setSavedReportId] = useState(null)
+  const [submissionStarted, setSubmissionStarted] = useState(false)
+  const [fileMessage, setFileMessage] = useState('')
+  const [submissionMessage, setSubmissionMessage] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
 
+  const locked = loading || submissionStarted
+
+  useEffect(() => {
+    if (!attachments.some((item) => item.status !== 'uploaded')) return
+    function warnBeforeLeaving(event) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeLeaving)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving)
+  }, [attachments])
+
+  function chooseFiles(event) {
+    const selected = Array.from(event.target.files || [])
+    event.target.value = ''
+    if (submittingRef.current || reportAttemptRef.current) return
+    const problems = []
+    const added = []
+    for (const file of selected) {
+      try {
+        evidenceFormat(file)
+        if (evidenceJobsRef.current.length + added.length >= MAX_EVIDENCE_FILES) {
+          throw new Error('You can attach up to 5 files.')
+        }
+        const duplicate = [...evidenceJobsRef.current, ...added].some((job) =>
+          job.file.name === file.name && job.file.size === file.size
+          && job.file.lastModified === file.lastModified)
+        if (duplicate) throw new Error('This file is already selected.')
+        added.push({ id: crypto.randomUUID(), file, complete: false })
+      } catch (error) {
+        problems.push(file.name + ': ' + error.message)
+      }
+    }
+    evidenceJobsRef.current = [...evidenceJobsRef.current, ...added]
+    setAttachments((current) => [...current, ...added.map((job) => ({
+      id: job.id, name: job.file.name, size: job.file.size, status: 'ready', error: '',
+    }))])
+    setFileMessage(problems.join('\n'))
+  }
+
+  function removeFile(id) {
+    if (submittingRef.current || reportAttemptRef.current) return
+    evidenceJobsRef.current = evidenceJobsRef.current.filter((job) => job.id !== id)
+    setAttachments((current) => current.filter((item) => item.id !== id))
+    setFileMessage('')
+  }
+
+  function setFileStatus(id, status, error = '') {
+    setAttachments((current) => current.map((item) => item.id === id ? { ...item, status, error } : item))
+  }
+
   function validateForm() {
-    if (!category) {
+    if (!handbookCategories.some((option) => option.value === category)) {
       return 'Please select a report category.'
     }
 
@@ -195,7 +180,9 @@ export default function NewReportPage() {
 
   function handleSubmit(event) {
     event.preventDefault()
+    if (submittingRef.current) return
 
+    if (reportAttemptRef.current) { void submitReport(); return }
     const validationError = validateForm()
 
     if (validationError) {
@@ -208,130 +195,64 @@ export default function NewReportPage() {
   }
 
   async function submitReport() {
+    if (submittingRef.current) return
+    const validationError = validateForm()
+    if (validationError) { setError(validationError); return }
+    submittingRef.current = true
+    setLoading(true)
+    setShowConfirm(false)
+    setError('')
     try {
-      setLoading(true)
-      setShowConfirm(false)
-      setError('')
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Your session expired. Sign back into the same account, then retry here.')
 
-      // --------------------------------------------------
-      // Get authenticated user
-      // --------------------------------------------------
+      if (!reportAttemptRef.current) {
+        const id = crypto.randomUUID()
+        setSubmissionStarted(true)
+        reportAttemptRef.current = {
+          id, userId: user.id,
+          payload: {
+            id, reporter_id: user.id, category, title: title.trim(),
+            description: description.trim(), location: location.trim() || null,
+            incident_date: incidentDate || null, anonymous: false,
+            severity: null, ai_category: null, ai_severity: null,
+            offense_classification: 'pending', status: 'submitted',
+          },
+        }
+      }
+      setSubmissionMessage(savedReportId ? 'Checking your saved report…' : 'Saving your report…')
+      const reportId = await ensureReportSaved(supabase, reportAttemptRef.current, user.id)
+      setSavedReportId(reportId)
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-
-      if (userError || !user) {
-        router.push('/login')
+      const jobs = evidenceJobsRef.current
+      let failed = 0
+      for (let index = 0; index < jobs.length; index++) {
+        const job = jobs[index]
+        if (job.complete) continue
+        setSubmissionMessage('Report saved. Processing attachment ' + (index + 1) + ' of ' + jobs.length + '…')
+        try {
+          await uploadEvidenceJob(supabase, job, reportId, user.id,
+            (status) => setFileStatus(job.id, status))
+        } catch (error) {
+          failed++
+          setFileStatus(job.id, 'failed', error.message || 'Upload failed. Please retry.')
+        }
+      }
+      if (failed) {
+        const uploaded = jobs.filter((job) => job.complete).length
+        setSubmissionMessage('Report saved. ' + uploaded + ' of ' + jobs.length + ' attachments uploaded.')
+        setError('Some attachments could not be saved. Keep this tab open and choose “Retry pending evidence”. Your report will not be submitted again.')
         return
       }
-
-      // --------------------------------------------------
-      // AI classification + severity assessment
-      // --------------------------------------------------
-
-      const aiText = `${title.trim()}\n${description.trim()}`
-
-      let classification = null
-
-      try {
-        const aiResponse = await fetch(
-          '/api/ai/classify',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              text: aiText,
-            }),
-          }
-        )
-
-        const aiData = await aiResponse.json()
-
-        if (!aiResponse.ok) {
-          throw new Error(
-            aiData.error ||
-              'AI classification failed.'
-          )
-        }
-
-        classification = aiData
-
-        console.log(
-          'AI classification:',
-          classification
-        )
-      } catch (aiError) {
-        console.error(
-          'AI classification failed:',
-          aiError
-        )
-
-        // The report should still be submitted
-        // if the AI service is temporarily unavailable.
-        classification = null
-      }
-
-      // --------------------------------------------------
-      // Save report to Supabase
-      // --------------------------------------------------
-
-      const { error: insertError } = await supabase
-        .from('reports')
-        .insert({
-          reporter_id: user.id,
-
-          // Student-selected category
-          category,
-
-          title: title.trim(),
-
-          description: description.trim(),
-
-          location:
-            location.trim() || null,
-
-          incident_date:
-            incidentDate || null,
-
-          // Student-selected/current severity
-          severity,
-
-          anonymous,
-
-          // AI-generated category
-          ai_category:
-            classification?.category || null,
-
-          // AI-generated severity
-          ai_severity:
-            classification?.severity || null,
-        })
-
-      if (insertError) {
-        throw insertError
-      }
-
-      // --------------------------------------------------
-      // Finish
-      // --------------------------------------------------
-
-      router.push('/dashboard/reports')
+      setSubmissionMessage(jobs.length ? 'Report and all attachments saved.' : 'Report saved.')
+      router.replace('/dashboard/reports/' + reportId)
       router.refresh()
-    } catch (err) {
-      console.error(
-        'Failed to submit report:',
-        err
-      )
-
-      setError(
-        err.message ||
-          'Unable to submit your report. Please try again.'
-      )
+    } catch (error) {
+      setSubmissionMessage('')
+      setError((error.message || 'Unable to complete submission.') +
+        (reportAttemptRef.current ? ' Retry in this tab to reuse the same report ID.' : ''))
     } finally {
+      submittingRef.current = false
       setLoading(false)
     }
   }
@@ -342,6 +263,7 @@ export default function NewReportPage() {
 
         {/* Back */}
         <button
+          disabled={loading}
           type="button"
           onClick={() =>
             router.push('/dashboard/reports')
@@ -386,10 +308,9 @@ export default function NewReportPage() {
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-600">
-                Only authorized school personnel
-                can access submitted reports. You
-                can also choose to submit this report
-                anonymously.
+                This report will be linked to your signed-in account.
+                School personnel reviewing it will be able to see your identity.
+                Include only personal details needed to explain the incident.
               </p>
             </div>
           </div>
@@ -399,6 +320,14 @@ export default function NewReportPage() {
           onSubmit={handleSubmit}
           className="space-y-6"
         >
+          {submissionStarted && (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+              {savedReportId
+                ? 'Your report is saved. You can retry unfinished attachments below without creating another report.'
+                : 'Submission has started. Details are locked so retrying uses the same report.'}
+              {' '}Keep this tab open until uploads finish. Selected files are not retained after closing or reloading.
+            </div>
+          )}
           {/* Incident information */}
           <Card className="p-5 sm:p-6">
             <div className="mb-6">
@@ -421,55 +350,25 @@ export default function NewReportPage() {
                 </span>
               </label>
 
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {categories.map(
-                  (option) => {
-                    const selected =
-                      category === option.value
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setCategory(
-                            option.value
-                          )
-                        }
-                        className={`rounded-xl border p-4 text-left transition ${
-                          selected
-                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/10'
-                            : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                              selected
-                                ? 'border-blue-600 bg-blue-600'
-                                : 'border-slate-300'
-                            }`}
-                          >
-                            {selected && (
-                              <div className="h-2 w-2 rounded-full bg-white" />
-                            )}
-                          </div>
-
-                          <div>
-                            <p className="text-sm font-bold text-slate-800">
-                              {option.label}
-                            </p>
-
-                            <p className="mt-1 text-xs leading-5 text-slate-500">
-                              {option.description}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  }
-                )}
-              </div>
+              <select
+                id="report-category"
+                aria-label="Reported incident category"
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                required
+                disabled={locked}
+                className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 [color-scheme:light]"
+              >
+                <option value="">Choose a category</option>
+                {handbookCategories.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs leading-5 text-slate-600">
+                Based on the handbook’s major-offense section (pp. 32–35).
+                Choose “Other / Not sure” if none fits. This selection is not a finding of guilt.
+                Safety and wellbeing concerns can still be reported without labeling them offenses.
+              </p>
             </div>
 
             {/* Title */}
@@ -486,6 +385,7 @@ export default function NewReportPage() {
 
               <input
                 id="title"
+                disabled={locked}
                 type="text"
                 value={title}
                 onChange={(event) =>
@@ -517,6 +417,7 @@ export default function NewReportPage() {
 
               <textarea
                 id="description"
+                disabled={locked}
                 value={description}
                 onChange={(event) =>
                   setDescription(
@@ -546,6 +447,7 @@ export default function NewReportPage() {
 
                 <input
                   id="location"
+                disabled={locked}
                   type="text"
                   value={location}
                   onChange={(event) =>
@@ -568,6 +470,7 @@ export default function NewReportPage() {
 
                 <input
                   id="incidentDate"
+                disabled={locked}
                   type="date"
                   value={incidentDate}
                   onChange={(event) =>
@@ -581,111 +484,67 @@ export default function NewReportPage() {
             </div>
           </Card>
 
-          {/* Severity */}
           <Card className="p-5 sm:p-6">
-            <div className="mb-5">
-              <h2 className="text-lg font-bold text-slate-900">
-                Severity
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Select the option that best represents
-                the seriousness of the situation.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {severityOptions.map(
-                (option) => {
-                  const selected =
-                    severity === option.value
-
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() =>
-                        setSeverity(
-                          option.value
-                        )
-                      }
-                      className={`rounded-xl border p-4 text-left transition ${
-                        selected
-                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/10'
-                          : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                            selected
-                              ? 'border-blue-600 bg-blue-600'
-                              : 'border-slate-300'
-                          }`}
-                        >
-                          {selected && (
-                            <div className="h-2 w-2 rounded-full bg-white" />
-                          )}
-                        </div>
-
-                        <div>
-                          <p className="text-sm font-bold capitalize text-slate-800">
-                            {option.label}
-                          </p>
-
-                          <p className="mt-1 text-xs leading-5 text-slate-500">
-                            {option.description}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  )
-                }
-              )}
-            </div>
-          </Card>
-
-          {/* Anonymous */}
-          <Card className="p-5 sm:p-6">
-            <div className="flex items-start gap-4">
-              <button
-                type="button"
-                onClick={() =>
-                  setAnonymous(
-                    !anonymous
-                  )
-                }
-                className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${
-                  anonymous
-                    ? 'bg-blue-600'
-                    : 'bg-slate-300'
-                }`}
-                aria-pressed={anonymous}
-              >
-                <span
-                  className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
-                    anonymous
-                      ? 'left-6'
-                      : 'left-1'
-                  }`}
-                />
-              </button>
-
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-800">
-                  Submit anonymously
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Your identity will not be
-                  displayed to staff viewing the
-                  report. Your account is still
-                  securely associated with the
-                  report internally.
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Evidence <span className="text-sm font-normal text-slate-500">(optional)</span></h2>
+                <p id="evidence-help" className="mt-1 text-sm leading-6 text-slate-600">
+                  Attach screenshots, photos, documents, or short recordings that help explain the incident.
+                  Up to 5 files, 10 MB each. JPG, PNG, WEBP, PDF, MP4, WEBM, MP3, M4A, or WAV.
                 </p>
               </div>
+              <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{attachments.length}/5 files</span>
             </div>
+            <input ref={fileInputRef} id="report-evidence" type="file" multiple
+              accept={EVIDENCE_ACCEPT} onChange={chooseFiles} disabled={locked}
+              aria-describedby="evidence-help" className="sr-only" tabIndex={-1} />
+            <button type="button" onClick={() => fileInputRef.current?.click()}
+              disabled={locked || attachments.length >= MAX_EVIDENCE_FILES}
+              className="mt-4 min-h-12 w-full rounded-xl border-2 border-dashed border-blue-200 bg-blue-50 px-4 py-4 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50">
+              Choose evidence files
+            </button>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Files upload only when you submit. Avoid unrelated personal information.
+              You can submit without evidence and add it later from the report details.
+            </p>
+            {fileMessage && <p role="alert" className="mt-3 whitespace-pre-line break-words text-sm text-red-700">{fileMessage}</p>}
+            {attachments.length > 0 && (
+              <ul className="mt-4 space-y-3" aria-label="Selected evidence">
+                {attachments.map((item) => (
+                  <li key={item.id} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-sm font-semibold text-slate-900">{item.name}</p>
+                      <p className="mt-1 text-xs text-slate-600">{(item.size / (1024 * 1024)).toFixed(2)} MB · {{
+                        ready: 'Ready to upload', uploading: 'Uploading…', linking: 'Saving attachment details…',
+                        uploaded: 'Uploaded', failed: 'Not completed — retry needed',
+                      }[item.status]}</p>
+                      {item.error && <p className="mt-1 break-words text-xs text-red-700">{item.error}</p>}
+                    </div>
+                    {!locked && <button type="button" onClick={() => removeFile(item.id)}
+                      aria-label={'Remove ' + item.name}
+                      className="min-h-11 shrink-0 rounded-lg px-3 text-sm font-semibold text-red-700 hover:bg-red-50">Remove</button>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
+
+          <Card className="p-5 sm:p-6">
+            <h2 className="text-lg font-bold text-slate-900">What happens next?</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Your report starts as pending assessment. The Prefect of Discipline and Student
+              Discipline Committee determine the applicable classification under the handbook.
+              No severity score or sanction is assigned automatically.
+            </p>
+          </Card>
+
+          {submissionMessage && <p role="status" aria-live="polite" className="rounded-xl bg-blue-50 p-4 text-sm text-blue-900">{submissionMessage}</p>}
+          {savedReportId && !loading && (
+            <button type="button" onClick={() => router.push('/dashboard/reports/' + savedReportId)}
+              className="min-h-11 text-sm font-semibold text-blue-700 underline">
+              Open saved report — unfinished attachments will not be carried over
+            </button>
+          )}
 
           {/* Error */}
           {error && (
@@ -701,6 +560,7 @@ export default function NewReportPage() {
             <Button
               type="button"
               variant="secondary"
+              disabled={loading}
               onClick={() =>
                 router.push(
                   '/dashboard/reports'
@@ -716,9 +576,10 @@ export default function NewReportPage() {
               disabled={loading}
               className="w-full sm:w-auto"
             >
-              {loading
-                ? 'Analyzing & Submitting...'
-                : 'Submit Report'}
+              {loading ? 'Saving report & evidence…'
+                : savedReportId ? 'Retry pending evidence'
+                : submissionStarted ? 'Retry submission'
+                : attachments.length ? 'Submit report & evidence' : 'Submit Report'}
             </Button>
           </div>
         </form>
@@ -742,19 +603,13 @@ export default function NewReportPage() {
       {/* Confirmation */}
       <ConfirmDialog
         open={showConfirm}
-        title={
-          anonymous
-            ? 'Submit anonymous report?'
-            : 'Submit this report?'
-        }
-        message={
-          anonymous
-            ? 'Your report will be submitted anonymously. Authorized staff will be able to review the incident, but your identity will not be displayed to them.'
-            : 'Please make sure the information you provided is accurate. Once submitted, authorized school personnel will be able to review your report.'
-        }
+        title="Submit this report?"
+        message={'This report is linked to your account and your identity is visible to school personnel reviewing it. ' +
+          (attachments.length ? attachments.length + ' attachment(s) will upload after the report is saved. ' : '') +
+          'Please check the details before submitting.'}
         confirmText={
           loading
-            ? 'Analyzing & Submitting...'
+            ? 'Submitting...'
             : 'Submit Report'
         }
         cancelText="Go Back"

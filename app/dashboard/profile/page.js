@@ -182,6 +182,12 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [faceLoginStatus, setFaceLoginStatus] = useState({
+    enabled: false,
+    eligible: false,
+    enrolled: false,
+    needsRenewal: false,
+  })
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -220,76 +226,28 @@ export default function ProfilePage() {
 
     setUser(currentUser)
 
-    const [
-      { data, error: profileError },
-      { data: enrollment, error: enrollmentError },
-    ] = await Promise.all([
+    const [profileResult, faceStatusResponse] = await Promise.all([
       supabase
         .from('profiles')
         .select(
-          'id, full_name, email, phone, role, student_id, avatar_url, face_auth_enabled, created_at, updated_at'
+          'id, full_name, email, phone, role, student_id, avatar_url, created_at, updated_at'
         )
         .eq('id', currentUser.id)
         .single(),
-
-      supabase
-        .from('face_enrollments')
-        .select('id, face_template, sample_count')
-        .eq('user_id', currentUser.id)
-        .maybeSingle(),
+      fetch('/api/face-login/status', { cache: 'no-store' }).catch(() => null),
     ])
+    const { data, error: profileError } = profileResult
 
     if (profileError) {
       throw profileError
     }
 
-    if (enrollmentError) {
-      throw enrollmentError
+    if (faceStatusResponse?.ok) {
+      const pilotStatus = await faceStatusResponse.json().catch(() => null)
+      if (pilotStatus) setFaceLoginStatus(pilotStatus)
     }
 
-    const embeddings =
-      enrollment?.face_template?.embeddings
-
-    const hasCompatibleEnrollment =
-      Array.isArray(embeddings) &&
-      embeddings.length >= 3
-
-    /*
-     * The account is only considered configured when:
-     *
-     * 1. profiles.face_auth_enabled is true
-     * 2. a face_enrollments record exists
-     * 3. that record contains the new Human embeddings
-     */
-    const faceConfigured =
-      Boolean(data?.face_auth_enabled) &&
-      hasCompatibleEnrollment
-
-    /*
-     * Repair a stale profile flag automatically.
-     *
-     * This handles the case where the enrollment row was deleted
-     * manually but profiles.face_auth_enabled remained true.
-     */
-    if (
-      data?.face_auth_enabled &&
-      !hasCompatibleEnrollment
-    ) {
-      await supabase
-        .from('profiles')
-        .update({
-          face_auth_enabled: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', currentUser.id)
-
-      data.face_auth_enabled = false
-    }
-
-    setProfile({
-      ...data,
-      face_auth_enabled: faceConfigured,
-    })
+    setProfile(data)
 
     setFullName(data?.full_name || '')
     setPhone(data?.phone || '')
@@ -823,6 +781,30 @@ export default function ProfilePage() {
           </div>
         </Card>
 
+        <div className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+          <h2 className="font-bold text-slate-900">Face login · supervised pilot</h2>
+          <p className="mt-2 text-sm text-slate-600">The new face-login system replaces the old profile scanner. Existing face enrollments do not transfer; approved student test accounts must enroll again. Password login remains available.</p>
+          <p className="mt-3 text-sm font-semibold text-indigo-900">
+            {!faceLoginStatus.enabled
+              ? 'Face login is disabled for this installation.'
+              : !faceLoginStatus.eligible
+                ? 'This account is not approved for the face-login pilot.'
+                : faceLoginStatus.needsRenewal
+                  ? 'Re-enrollment is required.'
+                  : faceLoginStatus.enrolled
+                    ? 'Face login is enrolled.'
+                    : 'This account can enroll in the pilot.'}
+          </p>
+          <button
+            type="button"
+            disabled={!faceLoginStatus.enabled || !faceLoginStatus.eligible}
+            onClick={() => router.push('/dashboard/profile/face-login')}
+            className="mt-4 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {faceLoginStatus.enrolled ? 'Manage face login' : 'Set up face login'}
+          </button>
+        </div>
+
         {/* Security */}
           <Card className="mt-6 p-5 sm:p-7">
             <div className="flex items-start gap-3">
@@ -836,7 +818,7 @@ export default function ProfilePage() {
                 </h2>
 
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  Manage your password and optional face authentication.
+                  Manage your password and optional sign-in methods.
                 </p>
               </div>
             </div>
@@ -863,69 +845,6 @@ export default function ProfilePage() {
                 </Button>
               </div>
 
-              {/* Face Authentication */}
-              <div className="flex flex-col gap-4 py-5 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                    <svg
-                      className="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle cx="12" cy="12" r="8" />
-                      <circle cx="9" cy="10" r="1" />
-                      <circle cx="15" cy="10" r="1" />
-                      <path d="M8.5 14.5c2 2 5 2 7 0" />
-                      <path d="M4 8c1.5-3 4.5-5 8-5s6.5 2 8 5" />
-                    </svg>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">
-                      Face Authentication
-                    </p>
-
-                    <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
-                      Create or manage your face-recognition profile. The scanner continuously tracks your face and captures several recognition samples for verification.
-                    </p>
-
-                    <div className="mt-2 flex items-center gap-2">
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          profile.face_auth_enabled
-                            ? 'bg-emerald-500'
-                            : 'bg-slate-300'
-                        }`}
-                      />
-
-                      <span
-                        className={`text-[11px] font-medium ${
-                          profile.face_auth_enabled
-                            ? 'text-emerald-600'
-                            : 'text-slate-400'
-                        }`}
-                      >
-                        {profile.face_auth_enabled
-                          ? 'Configured'
-                          : 'Not configured'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    router.push('/dashboard/profile/face-auth')
-                  }
-                >
-                  {profile.face_auth_enabled
-                    ? 'Manage Face Authentication'
-                    : 'Set Up Face Authentication'}
-                </Button>
-              </div>
             </div>
 
             <div className="mt-6 border-t border-slate-100 pt-5">

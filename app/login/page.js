@@ -128,6 +128,8 @@ export default function LoginPage() {
               )}
             </button>
 
+            <Link href="/auth/face-login" className="block w-full rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3.5 text-center text-sm font-semibold text-indigo-700 hover:bg-indigo-100">Sign in with Face · Optional pilot</Link>
+
             <div className="relative py-1 text-center text-xs text-slate-500">New to CCTC SafeSpace?</div>
             <Link href="/register" className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Create an Account</Link>
           </form>
