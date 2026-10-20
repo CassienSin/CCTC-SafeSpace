@@ -647,7 +647,7 @@ export default function FaceLoginCamera({
               </Link>
 
               <p className="mt-6 text-xs font-bold uppercase tracking-widest text-indigo-600">
-                CCTC SafeSpace · supervised pilot
+                CCTC SafeSpace · experimental face login
               </p>
 
               <h1 className="mt-2 text-3xl font-bold tracking-tight">
@@ -659,7 +659,7 @@ export default function FaceLoginCamera({
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 {enrolling
                   ? 'Optional camera sign-in, separate from your existing profile face scans.'
-                  : 'Use the email and face you enrolled for this pilot. Password and Google login remain available.'}
+                  : 'Use the email and face you enrolled for this account. Password and Google login remain available.'}
               </p>
 
               <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -670,10 +670,11 @@ export default function FaceLoginCamera({
               </p>
 
               <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-                Experimental webcam recognition—not iPhone Face ID.
-                Photos, replayed video, or manipulated camera input may
-                defeat it. Use test accounts only.
-                {!enrolling && ' This shorter login uses fewer movement challenges than enrollment and is not hardware-backed biometric authentication.'}
+                Experimental webcam recognition—not device Face ID or a
+                hardware-backed passkey. A photo, replayed video, or
+                manipulated camera input may defeat it. Keep password or
+                Google sign-in available for sensitive accounts.
+                {!enrolling && ' Face login is optional and uses fewer movement challenges than enrollment.'}
               </p>
             </div>
 
@@ -764,9 +765,9 @@ export default function FaceLoginCamera({
 
                     {status?.eligible === false && (
                       <p className="text-sm text-amber-800">
-                        This account is not approved for this pilot. Ask
-                        the project administrator to approve a student
-                        test account without MFA.
+                        Face login is unavailable for this account. It
+                        requires a confirmed email, a password, and no
+                        verified MFA factor.
                       </p>
                     )}
                   </>

@@ -782,18 +782,18 @@ export default function ProfilePage() {
         </Card>
 
         <div className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
-          <h2 className="font-bold text-slate-900">Face login · supervised pilot</h2>
-          <p className="mt-2 text-sm text-slate-600">The new face-login system replaces the old profile scanner. Existing face enrollments do not transfer; approved student test accounts must enroll again. Password login remains available.</p>
+          <h2 className="font-bold text-slate-900">Face login · optional experimental feature</h2>
+          <p className="mt-2 text-sm text-slate-600">Any account with a confirmed email, a password, and no verified MFA factor can opt in. Existing profile face scans do not transfer. Password and Google login remain available; webcam face matching may be spoofed and is not a hardware-backed passkey.</p>
           <p className="mt-3 text-sm font-semibold text-indigo-900">
             {!faceLoginStatus.enabled
               ? 'Face login is disabled for this installation.'
               : !faceLoginStatus.eligible
-                ? 'This account is not approved for the face-login pilot.'
+                ? 'Face login requires a confirmed email, a password, and no verified MFA factor.'
                 : faceLoginStatus.needsRenewal
                   ? 'Re-enrollment is required.'
                   : faceLoginStatus.enrolled
                     ? 'Face login is enrolled.'
-                    : 'This account can enroll in the pilot.'}
+                    : 'This account can enroll in optional face login.'}
           </p>
           <button
             type="button"
